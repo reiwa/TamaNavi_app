@@ -270,6 +270,7 @@ class _FinderViewState extends ConsumerState<FinderView>
             },
             onClearQuery: () {
               _searchController.clear();
+              _initialDisplayLimit = 30;
               setState(() {});
             },
             onRoomTap: (info) {
