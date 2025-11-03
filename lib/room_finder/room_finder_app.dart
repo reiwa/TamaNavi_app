@@ -22,6 +22,9 @@ class _FinderViewState extends ConsumerState<FinderView>
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
+  int _initialDisplayLimit = 30;
+  static const int _limitIncrement = 30;
+
   @override
   void initState() {
     super.initState();
@@ -79,23 +82,14 @@ class _FinderViewState extends ConsumerState<FinderView>
     super.dispose();
   }
 
-  List<BuildingRoomInfo> _sortedRooms(List<BuildingRoomInfo> rooms) {
-    rooms.sort((a, b) {
-      final buildingCompare = a.buildingName.compareTo(b.buildingName);
-      if (buildingCompare != 0) return buildingCompare;
-      final aName = a.room.name.isEmpty ? a.room.id : a.room.name;
-      final bName = b.room.name.isEmpty ? b.room.id : b.room.name;
-      final roomCompare = aName.compareTo(bName);
-      if (roomCompare != 0) return roomCompare;
-      return a.room.id.compareTo(b.room.id);
-    });
-    return rooms;
-  }
-
-  List<BuildingRoomInfo> _filterRooms(List<BuildingRoomInfo> rooms) {
+  List<BuildingRoomInfo> _filterRooms(List<BuildingRoomInfo> sortedRooms) {
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return rooms;
-    return rooms.where((info) {
+    
+    if (query.isEmpty) {
+      return sortedRooms.take(_initialDisplayLimit).toList(); 
+    }
+    
+    return sortedRooms.where((info) {
       final roomName = info.room.name.toLowerCase();
       final buildingName = info.buildingName.toLowerCase();
       final roomId = info.room.id.toLowerCase();
@@ -103,6 +97,12 @@ class _FinderViewState extends ConsumerState<FinderView>
           buildingName.contains(query) ||
           roomId.contains(query);
     }).toList();
+  }
+
+  void _loadMoreRooms() {
+    setState(() {
+      _initialDisplayLimit += _limitIncrement;
+    });
   }
 
   void _activateRoom(
@@ -225,8 +225,14 @@ class _FinderViewState extends ConsumerState<FinderView>
     final imageState = ref.watch(interactiveImageProvider);
     final isLoading = repo.isLoading;
 
-    final allRooms = ref.watch(buildingRoomInfosProvider);
+    final sortedRoomList = ref.watch(sortedBuildingRoomInfosProvider);
+    final filteredResults = _filterRooms(sortedRoomList);
     final activeBuilding = ref.watch(activeBuildingProvider);
+
+    final bool isQueryEmpty = _searchController.text.trim().isEmpty;
+
+    final bool canLoadMore =
+        isQueryEmpty && (filteredResults.length < sortedRoomList.length);
 
     if (!isLoading && pageController.hasClients) {
       final correctPageIndex =
@@ -255,12 +261,16 @@ class _FinderViewState extends ConsumerState<FinderView>
             isLoading: isLoading,
             searchController: _searchController,
             searchFocusNode: _searchFocusNode,
-            results: _filterRooms(
-              _sortedRooms(List<BuildingRoomInfo>.from(allRooms)),
-            ),
-            onQueryChanged: (_) {},
+            results: filteredResults,
+            isQueryEmpty: isQueryEmpty,
+            canLoadMore: canLoadMore,
+            onLoadMore: _loadMoreRooms,
+            onQueryChanged: (_) {
+              setState(() {});
+            },
             onClearQuery: () {
               _searchController.clear();
+              setState(() {});
             },
             onRoomTap: (info) {
               _activateRoom(
@@ -276,7 +286,7 @@ class _FinderViewState extends ConsumerState<FinderView>
             },
           )
         : () {
-            final inSameBuilding = allRooms
+            final inSameBuilding = sortedRoomList
                 .where((info) => info.buildingId == activeBuilding.id)
                 .toList();
             final hasValue = inSameBuilding.any(
