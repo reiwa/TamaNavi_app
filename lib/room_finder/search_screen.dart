@@ -8,6 +8,9 @@ class FinderSearchContent extends StatelessWidget {
     required this.searchController,
     required this.searchFocusNode,
     required this.results,
+    required this.isQueryEmpty,
+    required this.canLoadMore,
+    required this.onLoadMore,
     required this.onQueryChanged,
     required this.onClearQuery,
     required this.onRoomTap,
@@ -20,9 +23,14 @@ class FinderSearchContent extends StatelessWidget {
   final ValueChanged<String> onQueryChanged;
   final VoidCallback onClearQuery;
   final ValueChanged<BuildingRoomInfo> onRoomTap;
+  final bool isQueryEmpty;
+  final bool canLoadMore;
+  final VoidCallback onLoadMore;
 
   @override
   Widget build(BuildContext context) {
+    final bool showLoadMoreButton = !isLoading && isQueryEmpty && canLoadMore;
+
     return Column(
       children: [
         Padding(
@@ -48,38 +56,49 @@ class FinderSearchContent extends StatelessWidget {
           child: isLoading
               ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
               : results.isEmpty
-                  ? const Center(
-                      child: Text('該当する部屋がありません', style: TextStyle(fontSize: 13)),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      itemCount: results.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final info = results[index];
-                        final title =
-                            info.room.name.isEmpty ? info.room.id : info.room.name;
-                        return ListTile(
-                          dense: true,
-                          title: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          subtitle: Text(
-                            info.buildingName,
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                          trailing: Text(
-                            '${info.room.floor}階',
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                          onTap: () => onRoomTap(info),
-                        );
-                      },
-                    ),
+              ? const Center(
+                  child: Text('該当する部屋がありません', style: TextStyle(fontSize: 13)),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: results.length + (showLoadMoreButton ? 1 : 0),
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    if (showLoadMoreButton && index == results.length) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: TextButton(
+                          onPressed: onLoadMore,
+                          child: const Text('もっと探す!'),
+                        ),
+                      );
+                    }
+
+                    final info = results[index];
+                    final title = info.room.name.isEmpty
+                        ? info.room.id
+                        : info.room.name;
+                    return ListTile(
+                      dense: true,
+                      title: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        info.buildingName,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      trailing: Text(
+                        '${info.room.floor}階',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      onTap: () => onRoomTap(info),
+                    );
+                  },
+                ),
         ),
       ],
     );

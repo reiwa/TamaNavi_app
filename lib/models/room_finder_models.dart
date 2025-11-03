@@ -247,3 +247,20 @@ final buildingRoomInfosProvider = Provider<List<BuildingRoomInfo>>((ref) {
     orElse: () => <BuildingRoomInfo>[],
   );
 });
+
+final sortedBuildingRoomInfosProvider = Provider<List<BuildingRoomInfo>>((ref) {
+  final rooms = ref.watch(buildingRoomInfosProvider);
+
+  final listToSort = List<BuildingRoomInfo>.from(rooms);
+  listToSort.sort((a, b) {
+    final buildingCompare = a.buildingName.compareTo(b.buildingName);
+    if (buildingCompare != 0) return buildingCompare;
+    final aName = a.room.name.isEmpty ? a.room.id : a.room.name;
+    final bName = b.room.name.isEmpty ? b.room.id : b.room.name;
+    final roomCompare = aName.compareTo(bName);
+    if (roomCompare != 0) return roomCompare;
+    return a.room.id.compareTo(b.room.id);
+  });
+
+  return listToSort;
+});
