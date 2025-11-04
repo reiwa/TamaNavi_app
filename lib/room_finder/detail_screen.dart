@@ -35,23 +35,26 @@ class FinderDetailContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                Text(
-                  '$currentFloor階',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                ),
-                const VerticalDivider(thickness: 1, indent: 8, endIndent: 8),
                 Expanded(
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: dropdownValue,
                       isExpanded: true,
                       hint: const Text('部屋を選択', style: TextStyle(fontSize: 13)),
-                      style: const TextStyle(fontSize: 13, color: Colors.black87),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black87,
+                      ),
                       items: roomsInBuilding.map((info) {
-                        final title = info.room.name.isEmpty ? info.room.id : info.room.name;
+                        final title = info.room.name.isEmpty
+                            ? info.room.id
+                            : info.room.name;
                         return DropdownMenuItem<String>(
                           value: info.room.id,
-                          child: Text(title, style: const TextStyle(fontSize: 13)),
+                          child: Text(
+                            title,
+                            style: const TextStyle(fontSize: 13),
+                          ),
                         );
                       }).toList(),
                       onChanged: onRoomSelected,
@@ -67,12 +70,27 @@ class FinderDetailContent extends StatelessWidget {
             ),
           ),
         ),
-        interactiveImage,
-        const SizedBox(height: 4),
-        Container(height: 2, color: Colors.grey.shade300),
-        const SizedBox(height: 4),
+        Expanded(
+          child: Stack(
+            children: [
+              Positioned(
+                top: 12,
+                left: 16,
+                child: Text(
+                  '${currentFloor}F',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+              interactiveImage,
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 100,
+          height: 80,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
@@ -81,20 +99,29 @@ class FinderDetailContent extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
+                      child: Align(
+                        alignment: Alignment.bottomLeft,
                       child: Text(
                         selectedRoomInfo != null
                             ? '建物: ${selectedRoomInfo!.buildingName}'
                             : '建物: -',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                    ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Align(
-                        alignment: Alignment.centerRight,
+                        alignment: Alignment.bottomRight,
                         child: Text(
                           selectedElementLabel,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -102,11 +129,15 @@ class FinderDetailContent extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 2),
+                Container(height: 2, color: Colors.grey.shade300),
+                const SizedBox(height: 12),
                 selectedRoomInfo == null
                     ? const SizedBox.shrink()
                     : ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                        ),
                         onPressed: onStartNavigation,
                         child: const Text(
                           'ルートを検索する!',

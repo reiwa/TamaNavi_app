@@ -22,3 +22,6 @@
 
 ### My Memo
 flutter pub run build_runner watch --delete-conflicting-outputs
+git checkout main
+git fetch origin
+git pull origin main
