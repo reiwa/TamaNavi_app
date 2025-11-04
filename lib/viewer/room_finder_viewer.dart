@@ -98,7 +98,12 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
             color: Colors.green.withValues(alpha: 0.45),
             width: 2.0,
           ),
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(0.0),
+            topRight: Radius.circular(12.0),
+            bottomLeft: Radius.circular(12.0),
+            bottomRight: Radius.circular(12.0),
+          ),
         ),
         clipBehavior: Clip.hardEdge,
         child: Listener(
