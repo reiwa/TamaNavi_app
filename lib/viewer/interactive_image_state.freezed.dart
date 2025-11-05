@@ -35,6 +35,8 @@ mixin _$InteractiveImageState {
   BuildingRoomInfo? get selectedRoomInfo => throw _privateConstructorUsedError;
   String? get currentBuildingRoomId => throw _privateConstructorUsedError;
   bool get needsNavigationOnBuild => throw _privateConstructorUsedError;
+  Map<int, Size> get imageDimensionsByFloor =>
+      throw _privateConstructorUsedError;
 
   /// Create a copy of InteractiveImageState
   /// with the given fields replaced by the non-null parameter values.
@@ -67,6 +69,7 @@ abstract class $InteractiveImageStateCopyWith<$Res> {
     BuildingRoomInfo? selectedRoomInfo,
     String? currentBuildingRoomId,
     bool needsNavigationOnBuild,
+    Map<int, Size> imageDimensionsByFloor,
   });
 
   $CachedSDataCopyWith<$Res>? get selectedElement;
@@ -108,6 +111,7 @@ class _$InteractiveImageStateCopyWithImpl<
     Object? selectedRoomInfo = freezed,
     Object? currentBuildingRoomId = freezed,
     Object? needsNavigationOnBuild = null,
+    Object? imageDimensionsByFloor = null,
   }) {
     return _then(
       _value.copyWith(
@@ -175,6 +179,10 @@ class _$InteractiveImageStateCopyWithImpl<
                 ? _value.needsNavigationOnBuild
                 : needsNavigationOnBuild // ignore: cast_nullable_to_non_nullable
                       as bool,
+            imageDimensionsByFloor: null == imageDimensionsByFloor
+                ? _value.imageDimensionsByFloor
+                : imageDimensionsByFloor // ignore: cast_nullable_to_non_nullable
+                      as Map<int, Size>,
           )
           as $Val,
     );
@@ -249,6 +257,7 @@ abstract class _$$InteractiveImageStateImplCopyWith<$Res>
     BuildingRoomInfo? selectedRoomInfo,
     String? currentBuildingRoomId,
     bool needsNavigationOnBuild,
+    Map<int, Size> imageDimensionsByFloor,
   });
 
   @override
@@ -290,6 +299,7 @@ class __$$InteractiveImageStateImplCopyWithImpl<$Res>
     Object? selectedRoomInfo = freezed,
     Object? currentBuildingRoomId = freezed,
     Object? needsNavigationOnBuild = null,
+    Object? imageDimensionsByFloor = null,
   }) {
     return _then(
       _$InteractiveImageStateImpl(
@@ -357,6 +367,10 @@ class __$$InteractiveImageStateImplCopyWithImpl<$Res>
             ? _value.needsNavigationOnBuild
             : needsNavigationOnBuild // ignore: cast_nullable_to_non_nullable
                   as bool,
+        imageDimensionsByFloor: null == imageDimensionsByFloor
+            ? _value._imageDimensionsByFloor
+            : imageDimensionsByFloor // ignore: cast_nullable_to_non_nullable
+                  as Map<int, Size>,
       ),
     );
   }
@@ -382,7 +396,8 @@ class _$InteractiveImageStateImpl implements _InteractiveImageState {
     this.selectedRoomInfo,
     this.currentBuildingRoomId,
     this.needsNavigationOnBuild = false,
-  });
+    final Map<int, Size> imageDimensionsByFloor = const {},
+  }) : _imageDimensionsByFloor = imageDimensionsByFloor;
 
   @override
   @NullableOffsetConverter()
@@ -426,10 +441,19 @@ class _$InteractiveImageStateImpl implements _InteractiveImageState {
   @override
   @JsonKey()
   final bool needsNavigationOnBuild;
+  final Map<int, Size> _imageDimensionsByFloor;
+  @override
+  @JsonKey()
+  Map<int, Size> get imageDimensionsByFloor {
+    if (_imageDimensionsByFloor is EqualUnmodifiableMapView)
+      return _imageDimensionsByFloor;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_imageDimensionsByFloor);
+  }
 
   @override
   String toString() {
-    return 'InteractiveImageState(tapPosition: $tapPosition, selectedElement: $selectedElement, isDragging: $isDragging, isConnecting: $isConnecting, connectingStart: $connectingStart, previewPosition: $previewPosition, activeBuildingId: $activeBuildingId, currentFloor: $currentFloor, currentZoomScale: $currentZoomScale, currentType: $currentType, pendingFocusElement: $pendingFocusElement, suppressClearOnPageChange: $suppressClearOnPageChange, isSearchMode: $isSearchMode, selectedRoomInfo: $selectedRoomInfo, currentBuildingRoomId: $currentBuildingRoomId, needsNavigationOnBuild: $needsNavigationOnBuild)';
+    return 'InteractiveImageState(tapPosition: $tapPosition, selectedElement: $selectedElement, isDragging: $isDragging, isConnecting: $isConnecting, connectingStart: $connectingStart, previewPosition: $previewPosition, activeBuildingId: $activeBuildingId, currentFloor: $currentFloor, currentZoomScale: $currentZoomScale, currentType: $currentType, pendingFocusElement: $pendingFocusElement, suppressClearOnPageChange: $suppressClearOnPageChange, isSearchMode: $isSearchMode, selectedRoomInfo: $selectedRoomInfo, currentBuildingRoomId: $currentBuildingRoomId, needsNavigationOnBuild: $needsNavigationOnBuild, imageDimensionsByFloor: $imageDimensionsByFloor)';
   }
 
   @override
@@ -471,7 +495,11 @@ class _$InteractiveImageStateImpl implements _InteractiveImageState {
             (identical(other.currentBuildingRoomId, currentBuildingRoomId) ||
                 other.currentBuildingRoomId == currentBuildingRoomId) &&
             (identical(other.needsNavigationOnBuild, needsNavigationOnBuild) ||
-                other.needsNavigationOnBuild == needsNavigationOnBuild));
+                other.needsNavigationOnBuild == needsNavigationOnBuild) &&
+            const DeepCollectionEquality().equals(
+              other._imageDimensionsByFloor,
+              _imageDimensionsByFloor,
+            ));
   }
 
   @override
@@ -493,6 +521,7 @@ class _$InteractiveImageStateImpl implements _InteractiveImageState {
     selectedRoomInfo,
     currentBuildingRoomId,
     needsNavigationOnBuild,
+    const DeepCollectionEquality().hash(_imageDimensionsByFloor),
   );
 
   /// Create a copy of InteractiveImageState
@@ -526,6 +555,7 @@ abstract class _InteractiveImageState implements InteractiveImageState {
     final BuildingRoomInfo? selectedRoomInfo,
     final String? currentBuildingRoomId,
     final bool needsNavigationOnBuild,
+    final Map<int, Size> imageDimensionsByFloor,
   }) = _$InteractiveImageStateImpl;
 
   @override
@@ -562,6 +592,8 @@ abstract class _InteractiveImageState implements InteractiveImageState {
   String? get currentBuildingRoomId;
   @override
   bool get needsNavigationOnBuild;
+  @override
+  Map<int, Size> get imageDimensionsByFloor;
 
   /// Create a copy of InteractiveImageState
   /// with the given fields replaced by the non-null parameter values.

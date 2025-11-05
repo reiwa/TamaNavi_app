@@ -116,7 +116,6 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     final currentSnapshot = ref.read(activeBuildingProvider);
     if (currentSnapshot.id != kDraftBuildingId) {
-
       if (checkAgain) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted &&
@@ -151,32 +150,39 @@ class _EditorViewState extends ConsumerState<EditorView>
       _nameController.addListener(_updateNameFromTextField);
 
       isPageScrollable = canSwipeFloors;
-
-      ref.listenManual<InteractiveImageState>(interactiveImageProvider, (prev, next) {
+      ref.listenManual<InteractiveImageState>(interactiveImageProvider, (
+        prev,
+        next,
+      ) {
         if (!mounted) return;
-        if (prev?.selectedElement?.id != next.selectedElement?.id) {
-          final sel = next.selectedElement;
-          if (sel == null) {
-            _nameController.clear();
-            _xController.clear();
-            _yController.clear();
-          } else {
-            _nameController.text = sel.name;
-            _xController.text = sel.position.dx.toStringAsFixed(0);
-            _yController.text = sel.position.dy.toStringAsFixed(0);
-          }
-        }
         if (next.selectedElement == null &&
             prev?.tapPosition != next.tapPosition) {
+          debugPrint('pass');
           final p = next.tapPosition;
           if (p == null) {
+            debugPrint('Updating editor controllers for new tap position2');
             _nameController.clear();
             _xController.clear();
             _yController.clear();
           } else {
+            debugPrint('Updating editor controllers for new tap position');
             _nameController.text = '新しい要素';
-            _xController.text = p.dx.toStringAsFixed(0);
-            _yController.text = p.dy.toStringAsFixed(0);
+            final imageDimensions =
+                next.imageDimensionsByFloor[next.currentFloor];
+
+            if (imageDimensions != null &&
+                imageDimensions.width > 0 &&
+                imageDimensions.height > 0) {
+              final absolutePos = Offset(
+                p.dx * imageDimensions.width,
+                p.dy * imageDimensions.height,
+              );
+              _xController.text = absolutePos.dx.toStringAsFixed(0);
+              _yController.text = absolutePos.dy.toStringAsFixed(0);
+            } else {
+              _xController.text = p.dx.toStringAsFixed(0);
+              _yController.text = p.dy.toStringAsFixed(0);
+            }
           }
         }
 
@@ -189,7 +195,9 @@ class _EditorViewState extends ConsumerState<EditorView>
                 .applyPendingFocusIfAny();
 
             if (next.pendingFocusElement != null) {
-              ref.read(interactiveImageProvider.notifier).updateCurrentZoomScale();
+              ref
+                  .read(interactiveImageProvider.notifier)
+                  .updateCurrentZoomScale();
             }
           });
         }
@@ -220,9 +228,27 @@ class _EditorViewState extends ConsumerState<EditorView>
     final double? x = double.tryParse(_xController.text);
     final double? y = double.tryParse(_yController.text);
     if (x == null || y == null) return;
+
+    final Offset absolutePos = Offset(x, y);
+
+    final imgState = ref.read(interactiveImageProvider);
+    final imageDimensions =
+        imgState.imageDimensionsByFloor[imgState.currentFloor];
+
+    if (imageDimensions == null ||
+        imageDimensions.width == 0 ||
+        imageDimensions.height == 0) {
+      return;
+    }
+
+    final Offset relativePos = Offset(
+      (absolutePos.dx / imageDimensions.width).clamp(0.0, 1.0),
+      (absolutePos.dy / imageDimensions.height).clamp(0.0, 1.0),
+    );
+
     ref
         .read(interactiveImageProvider.notifier)
-        .updateElementPosition(Offset(x, y), ref);
+        .updateElementPosition(relativePos, ref);
   }
 
   void _toggleConnectionMode() {
@@ -274,9 +300,25 @@ class _EditorViewState extends ConsumerState<EditorView>
       return;
     }
 
+    final imgState = ref.read(interactiveImageProvider);
+    final imageDimensions =
+        imgState.imageDimensionsByFloor[imgState.currentFloor];
+
+    if (imageDimensions == null ||
+        imageDimensions.width == 0 ||
+        imageDimensions.height == 0) {
+      debugPrint("エラー: 画像の寸法が取得できません。");
+      return;
+    }
+
+    final Offset relativePos = Offset(
+      (x / imageDimensions.width).clamp(0.0, 1.0),
+      (y / imageDimensions.height).clamp(0.0, 1.0),
+    );
+
     ref
         .read(interactiveImageProvider.notifier)
-        .addElement(name: name, position: Offset(x, y), ref: ref);
+        .addElement(name: name, position: relativePos, ref: ref);
   }
 
   Future<void> _handleDeletePressed() async {
@@ -332,20 +374,33 @@ class _EditorViewState extends ConsumerState<EditorView>
     }
 
     final imageState = ref.watch(interactiveImageProvider);
-    final displaySText = ref
-        .read(activeBuildingProvider.notifier)
-        .buildSnapshot();
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
         _FloorHeader(
-          currentFloor: imageState.currentFloor,
           currentType: imageState.currentType,
           onTypeSelected: (type) =>
               ref.read(interactiveImageProvider.notifier).setCurrentType(type),
         ),
-        buildInteractiveImage(),
+        Expanded(
+          child: Stack(
+            children: [
+              Positioned(
+                top: 12,
+                left: 16,
+                child: Text(
+                  '${imageState.currentFloor}F',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+              buildInteractiveImage(),
+            ],
+          ),
+        ),
         const SizedBox(height: 4),
         if (imageState.tapPosition != null || imageState.isConnecting)
           EditorActionScreen(
@@ -363,10 +418,20 @@ class _EditorViewState extends ConsumerState<EditorView>
         const SizedBox(height: 4),
         Container(height: 2, color: Colors.grey[300]),
         const SizedBox(height: 4),
-        SnapshotScreen(
-          displaySText: displaySText,
-          onSettingsPressed: _openSettingsDialog,
-          onUploadPressed: _handleUploadPressed,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: _openSettingsDialog,
+            ),
+            IconButton(
+              icon: const Icon(Icons.cloud_upload),
+              tooltip: 'アップロード',
+              onPressed: () => _handleUploadPressed(),
+            ),
+          ],
         ),
       ],
     );
@@ -374,15 +439,10 @@ class _EditorViewState extends ConsumerState<EditorView>
 }
 
 class _FloorHeader extends StatelessWidget {
-  final int currentFloor;
   final PlaceType currentType;
   final ValueChanged<PlaceType> onTypeSelected;
 
-  const _FloorHeader({
-    required this.currentFloor,
-    required this.currentType,
-    required this.onTypeSelected,
-  });
+  const _FloorHeader({required this.currentType, required this.onTypeSelected});
 
   @override
   Widget build(BuildContext context) {
@@ -391,11 +451,6 @@ class _FloorHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Text(
-            '$currentFloor階',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const VerticalDivider(thickness: 1, indent: 8, endIndent: 8),
           Expanded(
             child: PlaceTypeSelector(
               currentType: currentType,

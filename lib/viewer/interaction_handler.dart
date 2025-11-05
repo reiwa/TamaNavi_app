@@ -16,7 +16,9 @@ void handleMarkerTapLogic<T extends CustomView>(
   bool isSelected,
   WidgetRef ref,
 ) {
-  ref.read(interactiveImageProvider.notifier).handleMarkerTap(sData, isSelected);
+  ref
+      .read(interactiveImageProvider.notifier)
+      .handleMarkerTap(sData, isSelected);
 
   final imgState = ref.read(interactiveImageProvider);
   final newSelected = imgState.selectedElement;
@@ -25,7 +27,18 @@ void handleMarkerTapLogic<T extends CustomView>(
     final editor = host as EditorControllerHost;
     if (newSelected != null) {
       editor.nameController.text = newSelected.name;
-      updateEditorControllersPosition(host, newSelected.position);
+
+      final imageDimensions =
+          imgState.imageDimensionsByFloor[imgState.currentFloor];
+      if (imageDimensions != null) {
+        final absolutePos = Offset(
+          newSelected.position.dx * imageDimensions.width,
+          newSelected.position.dy * imageDimensions.height,
+        );
+        updateEditorControllersPosition(host, absolutePos);
+      } else {
+        updateEditorControllersPosition(host, newSelected.position);
+      }
     } else {
       editor.nameController.clear();
       editor.xController.clear();
@@ -40,11 +53,20 @@ void handleMarkerDragEndLogic<T extends CustomView>(
   bool isSelected,
   WidgetRef ref,
 ) {
-  ref.read(interactiveImageProvider.notifier).handleMarkerDragEnd(
-        position,
-        isSelected,
-        ref,
-      );
+  ref
+      .read(interactiveImageProvider.notifier)
+      .handleMarkerDragEnd(position, isSelected, ref);
 
-  updateEditorControllersPosition(host, position);
+  final imgState = ref.read(interactiveImageProvider);
+  final imageDimensions =
+      imgState.imageDimensionsByFloor[imgState.currentFloor];
+  if (imageDimensions != null) {
+    final absolutePos = Offset(
+      position.dx * imageDimensions.width,
+      position.dy * imageDimensions.height,
+    );
+    updateEditorControllersPosition(host, absolutePos);
+  } else {
+    updateEditorControllersPosition(host, position);
+  }
 }

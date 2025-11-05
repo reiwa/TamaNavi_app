@@ -29,6 +29,7 @@ class PassagePainter extends CustomPainter {
     this.routeSegments = const [],
     required this.viewerSize,
     this.elevatorLinks = const [],
+    required this.imageDimensions,
   }) : super(repaint: controller);
 
   final List<Edge> edges;
@@ -38,6 +39,17 @@ class PassagePainter extends CustomPainter {
   final List<RouteVisualSegment> routeSegments;
   final Size viewerSize;
   final List<ElevatorVerticalLink> elevatorLinks;
+  final Size imageDimensions;
+
+  Offset _toAbsolute(Offset relative) {
+    if (imageDimensions.width == 0 || imageDimensions.height == 0) {
+      return Offset.zero;
+    }
+    return Offset(
+      relative.dx * imageDimensions.width,
+      relative.dy * imageDimensions.height,
+    );
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -54,7 +66,11 @@ class PassagePainter extends CustomPainter {
     final bool drawBaseEdges = routeSegments.isEmpty;
     if (drawBaseEdges) {
       for (final edge in edges) {
-        canvas.drawLine(edge.start, edge.end, edgePaint);
+        canvas.drawLine(
+          _toAbsolute(edge.start),
+          _toAbsolute(edge.end),
+          edgePaint,
+        );
       }
     }
 
@@ -69,8 +85,8 @@ class PassagePainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;
       final dashPath = _dashPath(
-        previewEdge!.start,
-        previewEdge!.end,
+        _toAbsolute(previewEdge!.start),
+        _toAbsolute(previewEdge!.end),
         5.0,
         5.0,
       );
@@ -90,7 +106,16 @@ class PassagePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     for (final segment in routeSegments) {
-      _drawChevronSequence(canvas, segment, chevronPaint, effectiveScale);
+      final absoluteSegment = RouteVisualSegment(
+        start: _toAbsolute(segment.start),
+        end: _toAbsolute(segment.end),
+      );
+      _drawChevronSequence(
+        canvas,
+        absoluteSegment,
+        chevronPaint,
+        effectiveScale,
+      );
     }
   }
 
@@ -190,9 +215,10 @@ class PassagePainter extends CustomPainter {
     const double baseLength = 60.0;
     final double effectiveScale = controller.value.getMaxScaleOnAxis().clamp(1.0, 10.0);
     for (final link in elevatorLinks) {
+      final Offset absoluteOrigin = _toAbsolute(link.origin);
       final double direction = link.isUpward ? -1.0 : 1.0;
       final double arrowLength = baseLength / effectiveScale;
-      final Offset endPoint = link.origin + Offset(0, arrowLength * direction);
+      final Offset endPoint = absoluteOrigin + Offset(0, arrowLength * direction);
       final Color arrowColorBase = link.highlight
           ? Colors.orangeAccent
           : link.color;
@@ -202,7 +228,7 @@ class PassagePainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;
 
-      canvas.drawLine(link.origin, endPoint, shaftPaint);
+      canvas.drawLine(absoluteOrigin, endPoint, shaftPaint);
 
       final double headSize = 6.0 / effectiveScale;
       final Path headPath = Path()
@@ -244,6 +270,7 @@ class PassagePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant PassagePainter old) {
+    if (old.imageDimensions != imageDimensions) return true;
     if (old.controller != controller) return true;
     if (old.viewerSize != viewerSize) return true;
     if (old.routeSegments != routeSegments) return true;
