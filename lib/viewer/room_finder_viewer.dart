@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:test_project/models/active_building_notifier.dart';
 import 'package:test_project/models/building_snapshot.dart';
 import 'package:test_project/models/element_data_models.dart';
+import 'package:test_project/room_editor/editor_connection_handler.dart';
 import 'package:test_project/room_editor/room_finder_app_editor.dart';
 import 'package:test_project/models/room_finder_models.dart';
 import 'package:test_project/utility/platform_utils.dart';
@@ -52,7 +53,7 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
   }
 
   PlaceType currentType = PlaceType.room;
-  
+
   final double minScale = 0.8;
   final double maxScale = 8.0;
 
@@ -63,7 +64,9 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
   }
 
   void _handlePageChanged(int pageIndex) {
-    ref.read(interactiveImageProvider.notifier).handlePageChanged(pageIndex, ref);
+    ref
+        .read(interactiveImageProvider.notifier)
+        .handlePageChanged(pageIndex, ref);
   }
 
   void _ensureActiveBuildingSynced() =>
@@ -81,9 +84,7 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
   bool _pendingContainerSync = false;
 
   Widget buildInteractiveImage() {
-    ref.watch(
-      interactiveImageProvider.select((s) => s.currentZoomScale),
-    );
+    ref.watch(interactiveImageProvider.select((s) => s.currentZoomScale));
     final bool canSwipe = canSwipeFloors;
     final ScrollPhysics pagePhysics = canSwipe
         ? TolerantPageScrollPhysics(
@@ -91,44 +92,42 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
             directionTolerance: pi / 6,
           )
         : const NeverScrollableScrollPhysics();
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Colors.green.withValues(alpha: 0.45),
-            width: 2.0,
-          ),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(0.0),
-            topRight: Radius.circular(12.0),
-            bottomLeft: Radius.circular(12.0),
-            bottomRight: Radius.circular(12.0),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Colors.green.withValues(alpha: 0.45),
+          width: 2.0,
         ),
-        clipBehavior: Clip.hardEdge,
-        child: Listener(
-          child: Builder(
-            builder: (context) {
-              final snap = ref.watch(activeBuildingProvider);
-              _ensureActiveBuildingSynced();
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(0.0),
+          topRight: Radius.circular(12.0),
+          bottomLeft: Radius.circular(12.0),
+          bottomRight: Radius.circular(12.0),
+        ),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Listener(
+        child: Builder(
+          builder: (context) {
+            final snap = ref.watch(activeBuildingProvider);
+            _ensureActiveBuildingSynced();
 
-              return Listener(
-                child: PageView.builder(
-                  controller: pageController,
-                  scrollBehavior: CustomScrollBehavior(),
-                  scrollDirection: Axis.vertical,
-                  physics: pagePhysics,
-                  itemCount: snap.floorCount,
-                  onPageChanged: _handlePageChanged,
-                  itemBuilder: (context, pageIndex) {
-                    final int floor = snap.floorCount - pageIndex;
+            return Listener(
+              child: PageView.builder(
+                controller: pageController,
+                scrollBehavior: CustomScrollBehavior(),
+                scrollDirection: Axis.vertical,
+                physics: pagePhysics,
+                itemCount: snap.floorCount,
+                onPageChanged: _handlePageChanged,
+                itemBuilder: (context, pageIndex) {
+                  final int floor = snap.floorCount - pageIndex;
 
-                    return _FloorPageView(self: this, floor: floor);
-                  },
-                ),
-              );
-            },
-          ),
+                  return _FloorPageView(self: this, floor: floor);
+                },
+              ),
+            );
+          },
         ),
       ),
     );

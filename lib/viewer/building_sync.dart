@@ -20,18 +20,6 @@ void handlePageChangedLogic<T extends CustomView>(
     editor.xController.clear();
     editor.yController.clear();
   }
-
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    notifier.applyPendingFocusIfAny();
-
-    final current = ref.read(interactiveImageProvider);
-    final transformationController = ref
-        .read(interactiveImageProvider.notifier)
-        .transformationController;
-    if (current.pendingFocusElement != null) {
-      transformationController.value = Matrix4.identity();
-    }
-  });
 }
 
 void ensureActiveBuildingSyncedLogic<T extends CustomView>(

@@ -66,7 +66,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/data/buildings.json
     - assets/images/zenkou_1f.png
     - assets/images/zenkou_2f.png
     - assets/images/zenkou_3f.png
