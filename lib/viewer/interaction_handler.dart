@@ -16,12 +16,20 @@ void handleMarkerTapLogic<T extends CustomView>(
   bool isSelected,
   WidgetRef ref,
 ) {
-  ref
-      .read(interactiveImageProvider.notifier)
-      .handleMarkerTap(sData, isSelected);
-
   final imgState = ref.read(interactiveImageProvider);
-  final newSelected = imgState.selectedElement;
+  final notifier = ref.read(interactiveImageProvider.notifier);
+
+  if (imgState.isConnecting && imgState.connectingStart != null) {
+    if (canConnectNodes(imgState.connectingStart!, sData)) {
+      notifier.connectToNode(sData, ref);
+      return;
+    }
+  }
+
+  notifier.handleMarkerTap(sData, isSelected);
+
+  final newImgState = ref.read(interactiveImageProvider);
+  final newSelected = newImgState.selectedElement;
 
   if (host is EditorControllerHost) {
     final editor = host as EditorControllerHost;

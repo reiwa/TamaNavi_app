@@ -132,14 +132,23 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
 
   void handlePageChanged(int pageIndex, WidgetRef ref) {
     final active = ref.read(activeBuildingProvider);
-
+    final newFloor = active.floorCount - pageIndex;
     final suppressClear = state.suppressClearOnPageChange;
 
+    final prevSelected = state.selectedElement;
+
+    final nextSelected = suppressClear ? state.selectedElement : prevSelected;
+    final nextTapPosition = suppressClear
+        ? state.tapPosition
+        : (prevSelected != null && prevSelected.floor == newFloor
+              ? prevSelected.position
+              : null);
+
     state = state.copyWith(
-      currentFloor: active.floorCount - pageIndex,
+      currentFloor: newFloor,
       activeBuildingId: active.id,
-      tapPosition: suppressClear ? state.tapPosition : null,
-      selectedElement: suppressClear ? state.selectedElement : null,
+      selectedElement: nextSelected,
+      tapPosition: nextTapPosition,
       isDragging: false,
     );
   }
@@ -202,6 +211,13 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
         suppressClearOnPageChange: false,
       );
     }
+  }
+
+  void selectElementOnly(CachedSData element) {
+    state = state.copyWith(
+      selectedElement: element,
+      tapPosition: element.position,
+    );
   }
 
   int? syncToBuilding(WidgetRef ref, {CachedSData? focusElement}) {
@@ -457,6 +473,21 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
       if (e.id == id) return e;
     }
     return null;
+  }
+
+  void connectToNode(CachedSData endNode, WidgetRef ref) {
+    final startNode = state.connectingStart;
+    if (startNode == null || startNode.id == endNode.id) return;
+
+    ref.read(activeBuildingProvider.notifier).addEdge(startNode.id, endNode.id);
+
+    state = state.copyWith(
+      isConnecting: false,
+      connectingStart: null,
+      previewPosition: null,
+      selectedElement: null,
+      tapPosition: null,
+    );
   }
 
   @override

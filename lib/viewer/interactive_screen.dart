@@ -142,13 +142,36 @@ class _InteractiveContent extends ConsumerStatefulWidget {
       _InteractiveContentState();
 }
 
-class _InteractiveContentState extends ConsumerState<_InteractiveContent> {
+class _InteractiveContentState extends ConsumerState<_InteractiveContent>
+    with SingleTickerProviderStateMixin {
   ImageStream? _imageStream;
+
+  late AnimationController _iconController;
+  late Animation<double> _iconAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadImageDimensions();
+
+    _iconController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _iconAnimation = CurvedAnimation(
+      parent: _iconController,
+      curve: Curves.elasticOut,
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final currentSelected = ref
+          .read(interactiveImageProvider)
+          .selectedElement;
+      if (currentSelected != null && currentSelected.floor == widget.floor) {
+        _iconController.forward(from: 0.0);
+      }
+    });
   }
 
   @override
@@ -182,6 +205,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent> {
   @override
   void dispose() {
     _imageStream?.removeListener(ImageStreamListener(_onImageLoad));
+    _iconController.dispose();
     super.dispose();
   }
 
@@ -192,7 +216,34 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent> {
         (s) => s.imageDimensionsByFloor[widget.floor],
       ),
     );
+
+    ref.listen<InteractiveImageState>(interactiveImageProvider, (prev, next) {
+      final wasSelected = prev?.selectedElement != null;
+      final isSelected = next.selectedElement != null;
+
+      if (!wasSelected && isSelected) {
+        _iconController.forward(from: 0.0);
+      } else if (wasSelected && !isSelected) {
+        _iconController.reset();
+      }
+    });
+
     final imageState = ref.watch(interactiveImageProvider);
+
+    final selected = imageState.selectedElement;
+    final isSelectedOnThisFloor =
+        selected != null && selected.floor == widget.floor;
+
+    if (isSelectedOnThisFloor) {
+      if (_iconController.status == AnimationStatus.dismissed) {
+        _iconController.forward();
+      }
+    } else {
+      if (_iconController.status != AnimationStatus.dismissed) {
+        _iconController.reset();
+      }
+    }
+
     final transformationController = ref
         .read(interactiveImageProvider.notifier)
         .transformationController;
@@ -205,7 +256,10 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent> {
     Size displaySize = imageDimensions;
     if (imageDimensions.width > widget.viewerSize.width) {
       final scale = widget.viewerSize.width / imageDimensions.width;
-      displaySize = Size(widget.viewerSize.width, imageDimensions.height * scale);
+      displaySize = Size(
+        widget.viewerSize.width,
+        imageDimensions.height * scale,
+      );
     }
     if (displaySize.height > widget.viewerSize.height) {
       final scale = widget.viewerSize.height / displaySize.height;
@@ -217,19 +271,19 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-            Image.asset(
-              widget.imagePath,
-              width: displaySize.width,
-              height: displaySize.height,
-              filterQuality: FilterQuality.medium,
-              errorBuilder: (context, error, stackTrace) {
-                return Center(
-                  child: Text(
-                    '${widget.floor}階の画像が見つかりません\n(${widget.imagePath})',
-                  ),
-                );
-              },
-            ),
+          Image.asset(
+            widget.imagePath,
+            width: displaySize.width,
+            height: displaySize.height,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (context, error, stackTrace) {
+              return Center(
+                child: Text(
+                  '${widget.floor}階の画像が見つかりません\n(${widget.imagePath})',
+                ),
+              );
+            },
+          ),
           _GestureLayer(
             self: widget.self,
             floor: widget.floor,
@@ -285,6 +339,31 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent> {
                         ref: widget.ref,
                         imageDimensions: displaySize,
                       ),
+                    if (imageState.selectedElement != null) ...[
+                      Builder(
+                        builder: (context) {
+                          final element = imageState.selectedElement!;
+                          final iconX = element.position.dx * displaySize.width;
+                          final iconY =
+                              element.position.dy * displaySize.height;
+                          final iconSize = pointerSize * 3.5;
+
+                          return Positioned(
+                            left: iconX - (iconSize / 2),
+                            top: iconY - iconSize * 0.9,
+                            child: ScaleTransition(
+                              scale: _iconAnimation,
+                              alignment: Alignment.bottomCenter,
+                              child: Icon(
+                                Icons.location_on,
+                                color: Colors.redAccent,
+                                size: iconSize,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 );
               },

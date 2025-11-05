@@ -160,7 +160,6 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
 
       upsert(snapshot);
     } catch (e) {
-      print('Firestore へのアップロード中にエラーが発生しました: $e');
       rethrow;
     }
   }

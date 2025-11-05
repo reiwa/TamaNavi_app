@@ -59,18 +59,6 @@ class _FinderViewState extends ConsumerState<FinderView>
             await _startNavigation();
           });
         }
-
-        if (prev?.currentFloor != next.currentFloor) {
-          if (!mounted) return;
-
-          ref.read(interactiveImageProvider.notifier).applyPendingFocusIfAny();
-
-          if (next.pendingFocusElement != null) {
-            ref
-                .read(interactiveImageProvider.notifier)
-                .updateCurrentZoomScale();
-          }
-        }
       });
     });
   }
@@ -126,16 +114,20 @@ class _FinderViewState extends ConsumerState<FinderView>
   }
 
   Future<void> _focusEntrance(CachedSData entrance) async {
-    final pageIndex = ref
-        .read(interactiveImageProvider.notifier)
-        .syncToBuilding(ref, focusElement: entrance);
+    final notifier = ref.read(interactiveImageProvider.notifier);
+    final pageIndex = notifier.syncToBuilding(ref, focusElement: entrance);
+
     if (pageIndex != null) {
       if (pageController.hasClients) {
-        pageController.animateToPage(
+        await pageController.animateToPage(
           pageIndex,
           duration: const Duration(milliseconds: 500),
           curve: Curves.decelerate,
         );
+        await Future.delayed(const Duration(milliseconds: 550));
+        if (mounted) {
+          notifier.applyPendingFocusIfAny();
+        }
       }
     }
   }
@@ -188,6 +180,10 @@ class _FinderViewState extends ConsumerState<FinderView>
         initialId: initial.id,
         onFocus: (focusEntrance) => _focusEntrance(focusEntrance),
       );
+
+      ref
+          .read(interactiveImageProvider.notifier)
+          .selectElementOnly(targetElement);
     }
     if (startNode == null) return;
 
@@ -204,8 +200,6 @@ class _FinderViewState extends ConsumerState<FinderView>
         context,
       ).showSnackBar(SnackBar(content: Text('ルートが見つかりません。')));
     }
-
-    await _focusEntrance(startNode);
   }
 
   void onTapDetected(Offset position) {

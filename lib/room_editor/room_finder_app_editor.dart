@@ -9,7 +9,6 @@ import 'package:test_project/viewer/room_finder_viewer.dart';
 import 'building_settings_dialog.dart';
 import 'editor_fixed_screen.dart';
 import 'editor_action_screen.dart';
-import 'snapshot_screen.dart';
 
 abstract class EditorControllerHost {
   TextEditingController get nameController;
@@ -157,15 +156,12 @@ class _EditorViewState extends ConsumerState<EditorView>
         if (!mounted) return;
         if (next.selectedElement == null &&
             prev?.tapPosition != next.tapPosition) {
-          debugPrint('pass');
           final p = next.tapPosition;
           if (p == null) {
-            debugPrint('Updating editor controllers for new tap position2');
             _nameController.clear();
             _xController.clear();
             _yController.clear();
           } else {
-            debugPrint('Updating editor controllers for new tap position');
             _nameController.text = '新しい要素';
             final imageDimensions =
                 next.imageDimensionsByFloor[next.currentFloor];
@@ -295,8 +291,14 @@ class _EditorViewState extends ConsumerState<EditorView>
     final double? x = double.tryParse(_xController.text);
     final double? y = double.tryParse(_yController.text);
 
+    final messenger = ScaffoldMessenger.of(context);
+
     if (name.isEmpty || x == null || y == null) {
-      debugPrint("入力エラー: 名前、X、Yを正しく入力してください。");
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("入力エラー: 名前、X、Yを正しく入力してください。"),
+        ),
+      );
       return;
     }
 
@@ -307,7 +309,11 @@ class _EditorViewState extends ConsumerState<EditorView>
     if (imageDimensions == null ||
         imageDimensions.width == 0 ||
         imageDimensions.height == 0) {
-      debugPrint("エラー: 画像の寸法が取得できません。");
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("エラー: 画像の寸法が取得できません。"),
+        ),
+      );
       return;
     }
 
