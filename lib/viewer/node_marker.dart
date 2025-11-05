@@ -17,6 +17,7 @@ class NodeMarker extends StatefulWidget {
     required this.onDragStart,
     required this.onDragUpdate,
     required this.onDragEnd,
+    required this.imageDimensions,
   });
 
   final CachedSData data;
@@ -29,6 +30,7 @@ class NodeMarker extends StatefulWidget {
   final VoidCallback onDragStart;
   final ValueChanged<Offset> onDragUpdate;
   final ValueChanged<Offset> onDragEnd;
+  final Size imageDimensions;
 
   @override
   State<NodeMarker> createState() => _NodeMarkerState();
@@ -44,9 +46,17 @@ class _NodeMarkerState extends State<NodeMarker> {
   double get _baseSize => widget.pointerSize;
   double get _selectedSize => widget.pointerSize / 8 * 10;
 
-  Offset get _effectivePosition => _dragOverride ?? widget.data.position;
+  Offset get _effectiveRelativePosition =>
+      _dragOverride ?? widget.data.position;
 
   double get _effectiveSize => widget.isSelected ? _selectedSize : _baseSize;
+
+  Offset _toAbsolute(Offset relative) {
+    return Offset(
+      relative.dx * widget.imageDimensions.width,
+      relative.dy * widget.imageDimensions.height,
+    );
+  }
 
   @override
   void didUpdateWidget(covariant NodeMarker oldWidget) {
@@ -60,12 +70,13 @@ class _NodeMarkerState extends State<NodeMarker> {
 
   @override
   Widget build(BuildContext context) {
-    final position = _effectivePosition;
+    final relativePosition = _effectiveRelativePosition;
+    final absolutePosition = _toAbsolute(relativePosition);
     final size = _effectiveSize;
 
     return Positioned(
-      left: position.dx - size / 2,
-      top: position.dy - size / 2,
+      left: absolutePosition.dx - size / 2,
+      top: absolutePosition.dy - size / 2,
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: widget.onTap,
@@ -79,10 +90,16 @@ class _NodeMarkerState extends State<NodeMarker> {
         onScaleUpdate: (details) {
           if (!_canDrag || !_isDragging) return;
           if (details.scale != 1.0) return;
-          final next =
-              (_dragOverride ?? widget.data.position) + details.focalPointDelta;
-          _dragOverride = next;
-          widget.onDragUpdate(next);
+          final relativeDelta = Offset(
+            details.focalPointDelta.dx / widget.imageDimensions.width,
+            details.focalPointDelta.dy / widget.imageDimensions.height,
+          );
+
+          final nextRelative =
+              (_dragOverride ?? widget.data.position) + relativeDelta;
+
+          _dragOverride = nextRelative;
+          widget.onDragUpdate(nextRelative);
           setState(() {});
         },
         onScaleEnd: (_) {
@@ -114,6 +131,7 @@ List<Widget> buildNodeMarkers({
   required List<CachedSData> relevantElements,
   required Set<String> routeNodeIds,
   required WidgetRef ref,
+  required Size imageDimensions,
 }) {
   return relevantElements.map((sData) {
     final imageState = ref.watch(interactiveImageProvider);
@@ -137,6 +155,7 @@ List<Widget> buildNodeMarkers({
       color: color,
       enableDrag: self.enableElementDrag,
       isConnecting: imageState.isConnecting,
+      imageDimensions: imageDimensions,
       onTap: () => self.handleMarkerTap(sData, isSelected),
       onDragStart: () {
         if (!imageState.isDragging) {

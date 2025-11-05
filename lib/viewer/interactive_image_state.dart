@@ -68,6 +68,8 @@ class InteractiveImageState with _$InteractiveImageState {
     BuildingRoomInfo? selectedRoomInfo,
     String? currentBuildingRoomId,
     @Default(false) bool needsNavigationOnBuild,
+
+    @Default({}) Map<int, Size> imageDimensionsByFloor,
   }) = _InteractiveImageState;
 }
 
@@ -76,6 +78,15 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
       TransformationController();
 
   InteractiveImageNotifier() : super(const InteractiveImageState());
+
+  void setImageDimensions(int floor, Size size) {
+    if (state.imageDimensionsByFloor[floor] == size) {
+      return;
+    }
+    state = state.copyWith(
+      imageDimensionsByFloor: {...state.imageDimensionsByFloor, floor: size},
+    );
+  }
 
   void toggleZoom() {
     final isZoomedOut =
@@ -159,11 +170,18 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
       return;
     }
 
-    final updatedData = imgState.selectedElement!.copyWith(position: position);
+    final clampedPosition = Offset(
+      position.dx.clamp(0.0, 1.0),
+      position.dy.clamp(0.0, 1.0),
+    );
+
+    final updatedData = imgState.selectedElement!.copyWith(
+      position: clampedPosition,
+    );
     state = imgState.copyWith(
       isDragging: false,
       selectedElement: updatedData,
-      tapPosition: position,
+      tapPosition: clampedPosition,
     );
 
     ref.read(activeBuildingProvider.notifier).updateSData(updatedData);
@@ -244,12 +262,16 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
     if (s.isDragging || sel == null) return;
     if (sel.position == newPosition) return;
 
-    final updated = sel.copyWith(position: newPosition);
-    ref.read(activeBuildingProvider.notifier).updateSData(updated);
-    state = s.copyWith(
-      selectedElement: updated,
-      tapPosition: newPosition,
+    final clampedPosition = Offset(
+      newPosition.dx.clamp(0.0, 1.0),
+      newPosition.dy.clamp(0.0, 1.0),
     );
+
+    if (sel.position == clampedPosition) return;
+
+    final updated = sel.copyWith(position: clampedPosition);
+    ref.read(activeBuildingProvider.notifier).updateSData(updated);
+    state = s.copyWith(selectedElement: updated, tapPosition: clampedPosition);
   }
 
   void setCurrentType(PlaceType type) {

@@ -25,7 +25,7 @@ class RoomFinder extends StatefulWidget {
 enum CustomViewType { editor, finder }
 
 class _RoomFinderState extends State<RoomFinder> {
-  Widget currentView = const FinderView();
+  Widget currentView = const EditorView();
 
   @override
   Widget build(BuildContext context) {
@@ -33,15 +33,17 @@ class _RoomFinderState extends State<RoomFinder> {
       body: Center(
         child: Stack(
           children: [
-            Container(
-              width: 360,
-              height: 600,
-              color: Colors.grey[50],
-              child: currentView,
+            LayoutBuilder(
+              builder: (context, constraints) => Container(
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                color: Colors.grey[50],
+                child: currentView,
+              ),
             ),
             Positioned(
               bottom: 0,
-              right: 16,
+              right: 78,
               child: PopupMenuButton<CustomViewType>(
                 onSelected: (type) {
                   setState(() {
@@ -83,7 +85,6 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       //showPerformanceOverlay: true,
-
       title: 'Hello Flutter',
       home: Scaffold(
         appBar: AppBar(title: const Text('Hello Flutter')),
@@ -118,7 +119,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-//データ消失対策　jsonアップロード
+//jsonアップロード deprecated
 Future<void> uploadBuildingsFromJson() async {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -199,9 +200,7 @@ Future<void> uploadBuildingsFromJson() async {
 
     if (buildingCount > 0) {
       await batch.commit();
-      debugPrint(
-        '成功: $buildingCount 件と $elementCount 件をアップロードしました。',
-      );
+      debugPrint('成功: $buildingCount 件と $elementCount 件をアップロードしました。');
     } else {
       debugPrint('アップロードするビルディングデータがありませんでした。');
     }
