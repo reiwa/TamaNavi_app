@@ -1,4 +1,4 @@
-package com.example.test_project
+package com.tmp.tamanavi_app
 
 import io.flutter.embedding.android.FlutterActivity
 
