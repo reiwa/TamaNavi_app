@@ -4,10 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:test_project/models/active_building_notifier.dart';
 import 'package:test_project/models/building_snapshot.dart';
 import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/room_editor/editor_connection_handler.dart';
-import 'package:test_project/room_editor/room_finder_app_editor.dart';
 import 'package:test_project/models/room_finder_models.dart';
 import 'package:test_project/utility/platform_utils.dart';
+import 'package:test_project/viewer/interactive_image_notifier.dart';
 import 'package:test_project/viewer/interactive_image_state.dart';
 import 'package:test_project/viewer/interactive_screen.dart';
 import 'passage_painter.dart';
@@ -66,7 +65,7 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
   void _handlePageChanged(int pageIndex) {
     ref
         .read(interactiveImageProvider.notifier)
-        .handlePageChanged(pageIndex, ref);
+    .handlePageChanged(pageIndex);
   }
 
   void _ensureActiveBuildingSynced() =>

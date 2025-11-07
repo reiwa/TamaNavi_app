@@ -73,6 +73,7 @@ class FinderDetailContent extends StatelessWidget {
         Expanded(
           child: Stack(
             children: [
+              interactiveImage,
               Positioned(
                 top: 12,
                 left: 16,
@@ -84,7 +85,6 @@ class FinderDetailContent extends StatelessWidget {
                   ),
                 ),
               ),
-              interactiveImage,
             ],
           ),
         ),

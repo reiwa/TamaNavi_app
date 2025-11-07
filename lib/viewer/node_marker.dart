@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/viewer/interactive_image_state.dart';
+import 'package:test_project/viewer/interactive_image_notifier.dart';
 import 'package:test_project/viewer/room_finder_viewer.dart';
 
 class NodeMarker extends StatefulWidget {
