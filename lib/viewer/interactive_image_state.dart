@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/models/room_finder_models.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
 
 part 'interactive_image_state.freezed.dart';
 

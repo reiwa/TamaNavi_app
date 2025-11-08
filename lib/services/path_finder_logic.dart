@@ -1,5 +1,5 @@
-import 'package:test_project/models/building_snapshot.dart';
-import 'package:test_project/models/element_data_models.dart';
+import 'package:tamanavi_app/models/building_snapshot.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
 
 class _AStarNode {
   final String id;

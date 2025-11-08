@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:test_project/models/building_snapshot.dart';
-import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/models/room_finder_models.dart';
+import 'package:tamanavi_app/models/building_snapshot.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
 
 final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 

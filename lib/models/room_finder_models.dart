@@ -1,9 +1,11 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:test_project/models/active_building_notifier.dart';
-import 'package:test_project/models/building_snapshot.dart';
-import 'package:test_project/models/element_data_models.dart';
+import 'package:tamanavi_app/models/active_building_notifier.dart';
+import 'package:tamanavi_app/models/building_snapshot.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 const String kDraftBuildingId = '__editor_draft__';
 
@@ -195,6 +197,54 @@ final graphEdgesProvider = Provider.family<List<Edge>, int>((ref, floor) {
   }
   return edges;
 });
+
+typedef FloorImageKey = ({String imagePattern, int floor});
+
+const String _floorImageFolder = 'gs://saidai-roomfinder.firebasestorage.app';
+
+String _composeFloorImagePath(FloorImageKey key) {
+  return '$_floorImageFolder/${key.imagePattern}_${key.floor}f.png';
+}
+
+final floorImageUrlProvider =
+    FutureProvider.family<String, FloorImageKey>((ref, key) async {
+
+  final storageRef = FirebaseStorage.instance.ref(_composeFloorImagePath(key));
+
+  return storageRef.getDownloadURL();
+});
+
+final floorImagePrefetchNotifierProvider =
+    NotifierProvider<FloorImagePrefetchNotifier, Set<FloorImageKey>>(
+  FloorImagePrefetchNotifier.new,
+);
+
+class FloorImagePrefetchNotifier extends Notifier<Set<FloorImageKey>> {
+  FloorImagePrefetchNotifier();
+
+  final Set<FloorImageKey> _inFlight = <FloorImageKey>{};
+
+  @override
+  Set<FloorImageKey> build() => <FloorImageKey>{};
+
+  Future<void> ensurePrefetched(BuildContext context, FloorImageKey key) async {
+    if (state.contains(key) || _inFlight.contains(key)) {
+      return;
+    }
+
+    _inFlight.add(key);
+    try {
+      final url = await ref.read(floorImageUrlProvider(key).future);
+      if (!context.mounted) return;
+      await precacheImage(NetworkImage(url), context);
+      final nextState = Set<FloorImageKey>.from(state)..add(key);
+      state = nextState;
+    } catch (_) {
+    } finally {
+      _inFlight.remove(key);
+    }
+  }
+}
 
 final activeRouteProvider =
     NotifierProvider<ActiveRouteNotifier, List<CachedSData>>(

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:test_project/models/active_building_notifier.dart';
-import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/utility/platform_utils.dart';
-import 'package:test_project/viewer/interactive_image_notifier.dart';
-import 'package:test_project/viewer/interactive_image_state.dart';
-import 'package:test_project/models/room_finder_models.dart';
-import 'package:test_project/viewer/room_finder_viewer.dart';
+import 'package:tamanavi_app/models/active_building_notifier.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/utility/platform_utils.dart';
+import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
+import 'package:tamanavi_app/viewer/interactive_image_state.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
+import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 
 import 'building_settings_dialog.dart';
 import 'editor_fixed_screen.dart';

@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:test_project/utility/animation_math.dart';
+import 'package:tamanavi_app/utility/animation_math.dart';
 
 Future<void> preloadSvgs(List<String> assetPaths) async {
   final futures = <Future>[];
@@ -22,7 +22,6 @@ Future<void> preloadSvgs(List<String> assetPaths) async {
         );
   }
   await Future.wait(futures);
-  debugPrint('All SVGs preloaded.');
 }
 
 class LogoSplashAnimation extends StatefulWidget {

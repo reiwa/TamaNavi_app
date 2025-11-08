@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:test_project/models/room_finder_models.dart';
-import 'package:test_project/room_editor/room_finder_app_editor.dart';
-import 'package:test_project/room_finder/room_finder_app.dart';
-import 'package:test_project/viewer/interactions/editor_interaction_delegate.dart';
-import 'package:test_project/viewer/interactions/finder_interaction_delegate.dart';
-import 'package:test_project/viewer/interactions/interaction_delegate.dart';
-import 'package:test_project/viewer/interactive_image_notifier.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
+import 'package:tamanavi_app/room_editor/room_finder_app_editor.dart';
+import 'package:tamanavi_app/room_finder/room_finder_app.dart';
+import 'package:tamanavi_app/viewer/interactions/editor_interaction_delegate.dart';
+import 'package:tamanavi_app/viewer/interactions/finder_interaction_delegate.dart';
+import 'package:tamanavi_app/viewer/interactions/interaction_delegate.dart';
+import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'firebase_options.dart';
 
 import 'splash_screen.dart';
@@ -39,7 +39,6 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
   }
 
   void _startDataLoading() {
-
     final repoProvider = buildingRepositoryProvider;
     if (!ref.read(repoProvider).isLoading) {
       if (mounted) {

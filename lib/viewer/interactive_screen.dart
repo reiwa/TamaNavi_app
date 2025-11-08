@@ -1,14 +1,14 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:test_project/models/active_building_notifier.dart';
-import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/utility/platform_utils.dart';
-import 'package:test_project/viewer/interactive_image_notifier.dart';
-import 'package:test_project/viewer/interactive_image_state.dart';
-import 'package:test_project/viewer/node_marker.dart';
-import 'package:test_project/viewer/passage_painter.dart';
-import 'package:test_project/viewer/room_finder_viewer.dart';
+import 'package:tamanavi_app/models/active_building_notifier.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/utility/platform_utils.dart';
+import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
+import 'package:tamanavi_app/viewer/interactive_image_state.dart';
+import 'package:tamanavi_app/viewer/node_marker.dart';
+import 'package:tamanavi_app/viewer/passage_painter.dart';
+import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 import 'package:uuid/uuid.dart';
 
 class InteractiveLayer extends StatelessWidget {
@@ -16,7 +16,7 @@ class InteractiveLayer extends StatelessWidget {
     super.key,
     required this.self,
     required this.floor,
-    required this.imagePath,
+    required this.imageUrl,
     required this.viewerSize,
     required this.relevantElements,
     required this.routeNodeIds,
@@ -29,7 +29,7 @@ class InteractiveLayer extends StatelessWidget {
 
   final InteractiveImageMixin self;
   final int floor;
-  final String imagePath;
+  final String imageUrl;
   final Size viewerSize;
   final List<CachedSData> relevantElements;
   final Set<String> routeNodeIds;
@@ -73,7 +73,7 @@ class InteractiveLayer extends StatelessWidget {
             child: _InteractiveContent(
               self: self,
               floor: floor,
-              imagePath: imagePath,
+              imageUrl: imageUrl,
               viewerSize: viewerSize,
               relevantElements: relevantElements,
               routeNodeIds: routeNodeIds,
@@ -114,7 +114,7 @@ class _InteractiveContent extends ConsumerStatefulWidget {
   const _InteractiveContent({
     required this.self,
     required this.floor,
-    required this.imagePath,
+    required this.imageUrl,
     required this.viewerSize,
     required this.relevantElements,
     required this.routeNodeIds,
@@ -127,7 +127,7 @@ class _InteractiveContent extends ConsumerStatefulWidget {
 
   final InteractiveImageMixin self;
   final int floor;
-  final String imagePath;
+  final String imageUrl;
   final Size viewerSize;
   final List<CachedSData> relevantElements;
   final Set<String> routeNodeIds;
@@ -145,9 +145,11 @@ class _InteractiveContent extends ConsumerStatefulWidget {
 class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     with SingleTickerProviderStateMixin {
   ImageStream? _imageStream;
+  ImageStreamListener? _imageStreamListener;
 
   late AnimationController _iconController;
   late Animation<double> _iconAnimation;
+  ProviderSubscription<InteractiveImageState>? _imageStateSubscription;
 
   @override
   void initState() {
@@ -163,6 +165,8 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       curve: Curves.elasticOut,
     );
 
+    _subscribeToImageState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final currentSelected = ref
@@ -177,15 +181,51 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
   @override
   void didUpdateWidget(_InteractiveContent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.imagePath != widget.imagePath) {
+    if (oldWidget.imageUrl != widget.imageUrl) {
       _loadImageDimensions();
+    }
+
+    if (oldWidget.floor != widget.floor) {
+      _subscribeToImageState();
     }
   }
 
   void _loadImageDimensions() {
-    final image = Image.asset(widget.imagePath);
-    _imageStream = image.image.resolve(const ImageConfiguration());
-    _imageStream?.addListener(ImageStreamListener(_onImageLoad));
+    final image = Image.network(widget.imageUrl);
+    final nextStream = image.image.resolve(const ImageConfiguration());
+
+    _imageStreamListener ??= ImageStreamListener(_onImageLoad);
+
+    if (_imageStream != null && _imageStreamListener != null) {
+      _imageStream!.removeListener(_imageStreamListener!);
+    }
+
+    _imageStream = nextStream;
+    if (_imageStreamListener != null) {
+      _imageStream!.addListener(_imageStreamListener!);
+    }
+  }
+
+  void _subscribeToImageState() {
+    _imageStateSubscription?.close();
+    _imageStateSubscription = ref.listenManual<InteractiveImageState>(
+      interactiveImageProvider,
+      _onImageStateChange,
+    );
+  }
+
+  void _onImageStateChange(
+    InteractiveImageState? previous,
+    InteractiveImageState next,
+  ) {
+    final wasSelected = previous?.selectedElement != null;
+    final isSelected = next.selectedElement != null;
+
+    if (!wasSelected && isSelected) {
+      _iconController.forward(from: 0.0);
+    } else if (wasSelected && !isSelected) {
+      _iconController.reset();
+    }
   }
 
   void _onImageLoad(ImageInfo imageInfo, bool synchronousCall) {
@@ -207,7 +247,10 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
 
   @override
   void dispose() {
-    _imageStream?.removeListener(ImageStreamListener(_onImageLoad));
+    if (_imageStreamListener != null) {
+      _imageStream?.removeListener(_imageStreamListener!);
+    }
+    _imageStateSubscription?.close();
     _iconController.dispose();
     super.dispose();
   }
@@ -219,17 +262,6 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
         (s) => s.imageDimensionsByFloor[widget.floor],
       ),
     );
-
-    ref.listen<InteractiveImageState>(interactiveImageProvider, (prev, next) {
-      final wasSelected = prev?.selectedElement != null;
-      final isSelected = next.selectedElement != null;
-
-      if (!wasSelected && isSelected) {
-        _iconController.forward(from: 0.0);
-      } else if (wasSelected && !isSelected) {
-        _iconController.reset();
-      }
-    });
 
     final imageState = ref.watch(interactiveImageProvider);
 
@@ -274,15 +306,15 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Image.asset(
-            widget.imagePath,
+          Image.network(
+            widget.imageUrl,
             width: displaySize.width,
             height: displaySize.height,
             filterQuality: FilterQuality.medium,
             errorBuilder: (context, error, stackTrace) {
               return Center(
                 child: Text(
-                  '${widget.floor}階の画像が見つかりません\n(${widget.imagePath})',
+                  '${widget.floor}階の画像が見つかりません\n(${widget.imageUrl})',
                 ),
               );
             },

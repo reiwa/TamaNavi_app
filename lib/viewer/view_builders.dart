@@ -91,7 +91,7 @@ class _FloorPageView extends ConsumerWidget {
       pushElevatorLink(second, first);
     }
 
-    final imageState = ref.watch(interactiveImageProvider);
+  final imageState = ref.watch(interactiveImageProvider);
 
     Edge? previewEdge;
     if (imageState.isConnecting &&
@@ -104,8 +104,31 @@ class _FloorPageView extends ConsumerWidget {
       );
     }
 
-    final imagePath =
-        'assets/images/${snap.imagePattern}_${floor}f.png';
+    final imageKey = (
+      imagePattern: snap.imagePattern,
+      floor: floor,
+    );
+    final imageUrlValue = ref.watch(floorImageUrlProvider(imageKey));
+
+  void scheduleDeferredPrefetch() {
+      if (snap.imagePattern.isEmpty) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        Future.microtask(() async {
+          if (!context.mounted) return;
+          final prefetchNotifier =
+              ref.read(floorImagePrefetchNotifierProvider.notifier);
+          for (var f = 1; f <= snap.floorCount; f++) {
+            if (f == floor) continue;
+            final key = (
+              imagePattern: snap.imagePattern,
+              floor: f,
+            );
+            await prefetchNotifier.ensurePrefetched(context, key);
+          }
+        });
+      });
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -136,22 +159,36 @@ class _FloorPageView extends ConsumerWidget {
             ),
           ),
           clipBehavior: Clip.hardEdge,
-          child: Stack(
-            children: [
-              InteractiveLayer(
-                self: self,
-                floor: floor,
-                imagePath: imagePath,
-                viewerSize: viewerSize,
-                relevantElements: relevantElements,
-                routeNodeIds: routeNodeIds,
-                routeVisualSegments: routeVisualSegments,
-                elevatorLinks: elevatorLinks,
-                passageEdges: passageEdges,
-                previewEdge: previewEdge,
-                ref: ref,
+          child: imageUrlValue.when(
+            data: (imageUrl) {
+              scheduleDeferredPrefetch();
+              return Stack(
+                children: [
+                  InteractiveLayer(
+                    self: self,
+                    floor: floor,
+                    imageUrl: imageUrl,
+                    viewerSize: viewerSize,
+                    relevantElements: relevantElements,
+                    routeNodeIds: routeNodeIds,
+                    routeVisualSegments: routeVisualSegments,
+                    elevatorLinks: elevatorLinks,
+                    passageEdges: passageEdges,
+                    previewEdge: previewEdge,
+                    ref: ref,
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(
+              child: CircularProgressIndicator(),
+            ),
+            error: (error, stackTrace) => Center(
+              child: Text(
+                '$floor階の画像を取得できませんでした\n${error.toString()}',
+                textAlign: TextAlign.center,
               ),
-            ],
+            ),
           ),
         );
       },

@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:test_project/models/active_building_notifier.dart';
-import 'package:test_project/models/building_snapshot.dart';
-import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/models/room_finder_models.dart';
-import 'package:test_project/services/path_finder_logic.dart';
-import 'package:test_project/viewer/interactive_image_state.dart';
-import 'package:test_project/viewer/interactions/interaction_delegate.dart';
+import 'package:tamanavi_app/models/active_building_notifier.dart';
+import 'package:tamanavi_app/models/building_snapshot.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
+import 'package:tamanavi_app/services/path_finder_logic.dart';
+import 'package:tamanavi_app/viewer/interactive_image_state.dart';
+import 'package:tamanavi_app/viewer/interactions/interaction_delegate.dart';
 
 class FinderInteractionDelegate extends InteractionDelegate {
-  FinderInteractionDelegate({required Ref ref}) : super(ref: ref);
+  FinderInteractionDelegate({required super.ref});
 
   @override
   InteractiveImageState handleTap({

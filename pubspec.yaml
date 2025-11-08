@@ -1,4 +1,4 @@
-name: test_project
+name: tamanavi_app
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -43,6 +43,7 @@ dependencies:
   hooks_riverpod: ^3.0.3
   firebase_core: ^4.2.0
   cloud_firestore: ^6.0.3
+  firebase_storage: ^13.0.0
 
 dev_dependencies:
   flutter_test:

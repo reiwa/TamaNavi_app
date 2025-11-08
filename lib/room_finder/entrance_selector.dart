@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:test_project/models/element_data_models.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
 
 Future<CachedSData?> showEntranceSelector({
   required BuildContext context,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/models/room_finder_models.dart';
-import 'package:test_project/viewer/interactive_image_state.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
+import 'package:tamanavi_app/viewer/interactive_image_state.dart';
 
 abstract class InteractionDelegate {
   InteractionDelegate({required this.ref});

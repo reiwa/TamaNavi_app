@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:test_project/models/active_building_notifier.dart';
+import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:test_project/models/building_snapshot.dart';
-import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/models/room_finder_models.dart';
-import 'package:test_project/viewer/interactive_image_notifier.dart';
-import 'package:test_project/viewer/interactive_image_state.dart';
-import 'package:test_project/viewer/room_finder_viewer.dart';
+import 'package:tamanavi_app/models/building_snapshot.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
+import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
+import 'package:tamanavi_app/viewer/interactive_image_state.dart';
+import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 import 'detail_screen.dart';
 import 'entrance_selector.dart';
 import 'search_screen.dart';
@@ -16,23 +16,39 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 final displayLimitProvider = StateProvider<int>((ref) => 30);
 const int _limitIncrement = 30;
 
+final debouncedQueryProvider = FutureProvider<String>((ref) async {
+  final query = ref.watch(searchQueryProvider);
+
+  await Future.delayed(const Duration(milliseconds: 300));
+
+  return query.trim().toLowerCase();
+});
+
 final filteredRoomsProvider = Provider<List<BuildingRoomInfo>>((ref) {
-  final query = ref.watch(searchQueryProvider).trim().toLowerCase();
+  final query = ref.watch(debouncedQueryProvider);
   final sortedRooms = ref.watch(sortedBuildingRoomInfosProvider);
   final limit = ref.watch(displayLimitProvider);
 
-  if (query.isEmpty) {
-    return sortedRooms.take(limit).toList();
-  }
+  return query.when(
+    data: (query) {
+      if (query.isEmpty) {
+        return sortedRooms.take(limit).toList();
+      }
 
-  return sortedRooms.where((info) {
-    final roomName = info.room.name.toLowerCase();
-    final buildingName = info.buildingName.toLowerCase();
-    final roomId = info.room.id.toLowerCase();
-    return roomName.contains(query) ||
-        buildingName.contains(query) ||
-        roomId.contains(query);
-  }).toList();
+      return sortedRooms
+          .where((info) {
+            final roomName = info.room.name.toLowerCase();
+            final buildingName = info.buildingName.toLowerCase();
+            return roomName.contains(query) ||
+                buildingName.contains(query);
+          })
+          .take(limit)
+          .toList();
+    },
+    loading: () =>
+        sortedRooms.take(limit).toList(),
+    error: (e, s) => [],
+  );
 });
 
 final canLoadMoreProvider = Provider<bool>((ref) {
@@ -99,7 +115,10 @@ class _FinderViewState extends ConsumerState<FinderView>
         }
       });
 
-      ref.listenManual<InteractiveImageState>(interactiveImageProvider, (prev, next) {
+      ref.listenManual<InteractiveImageState>(interactiveImageProvider, (
+        prev,
+        next,
+      ) {
         if (!mounted) return;
         final activeSnapshot = ref.read(activeBuildingProvider);
         final correctPageIndex = activeSnapshot.floorCount - next.currentFloor;
@@ -235,8 +254,9 @@ class _FinderViewState extends ConsumerState<FinderView>
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, _) {
-        final isLoading = ref
-            .watch(buildingRepositoryProvider.select((s) => s.isLoading));
+        final isLoading = ref.watch(
+          buildingRepositoryProvider.select((s) => s.isLoading),
+        );
         final imageState = ref.watch(interactiveImageProvider);
         final activeBuilding = ref.watch(activeBuildingProvider);
 
@@ -252,9 +272,9 @@ class _FinderViewState extends ConsumerState<FinderView>
                 searchFocusNode: _searchFocusNode,
                 isQueryEmpty: isQueryEmpty,
                 canLoadMore: canLoadMore,
-                onLoadMore: () => ref
-                    .read(displayLimitProvider.notifier)
-                    .state += _limitIncrement,
+                onLoadMore: () =>
+                    ref.read(displayLimitProvider.notifier).state +=
+                        _limitIncrement,
                 onQueryChanged: (query) {
                   ref.read(searchQueryProvider.notifier).state = query;
                 },
@@ -296,24 +316,7 @@ class _FinderViewState extends ConsumerState<FinderView>
                 );
               }();
 
-        return Stack(
-          children: [
-            content,
-            if (shouldShowSearch)
-              Positioned(
-                bottom: 24,
-                right: 24,
-                child: FloatingActionButton(
-                  heroTag: 'focus_search',
-                  onPressed: () =>
-                      FocusScope.of(context).requestFocus(_searchFocusNode),
-                  backgroundColor: Colors.green,
-                  tooltip: '検索ボックスにフォーカス',
-                  child: const Icon(Icons.search),
-                ),
-              ),
-          ],
-        );
+        return content;
       },
     );
   }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:test_project/models/element_data_models.dart';
-import 'package:test_project/viewer/interactive_image_notifier.dart';
-import 'package:test_project/viewer/room_finder_viewer.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
+import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 
 class NodeMarker extends StatefulWidget {
   const NodeMarker({
@@ -133,9 +133,10 @@ List<Widget> buildNodeMarkers({
   required WidgetRef ref,
   required Size imageDimensions,
 }) {
+  final imageState = ref.watch(interactiveImageProvider);
+  final notifier = ref.read(interactiveImageProvider.notifier);
+
   return relevantElements.map((sData) {
-    final imageState = ref.watch(interactiveImageProvider);
-    final notifier = ref.read(interactiveImageProvider.notifier);
     final isSelected = imageState.selectedElement?.id == sData.id;
     final baseColor = sData.type.color;
     final color =

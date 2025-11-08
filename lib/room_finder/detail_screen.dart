@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:test_project/models/room_finder_models.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
 
 class FinderDetailContent extends StatelessWidget {
   const FinderDetailContent({
@@ -101,16 +101,16 @@ class FinderDetailContent extends StatelessWidget {
                     Expanded(
                       child: Align(
                         alignment: Alignment.bottomLeft,
-                      child: Text(
-                        selectedRoomInfo != null
-                            ? '建物: ${selectedRoomInfo!.buildingName}'
-                            : '建物: -',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                        child: Text(
+                          selectedRoomInfo != null
+                              ? '建物: ${selectedRoomInfo!.buildingName}'
+                              : '建物: -',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -131,11 +131,12 @@ class FinderDetailContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Container(height: 2, color: Colors.grey.shade300),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 selectedRoomInfo == null
                     ? const SizedBox.shrink()
                     : ElevatedButton(
                         style: ElevatedButton.styleFrom(
+                          fixedSize: Size(double.infinity, 36),
                           backgroundColor: Colors.green,
                         ),
                         onPressed: onStartNavigation,
