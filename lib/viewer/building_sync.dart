@@ -8,7 +8,7 @@ void handlePageChangedLogic<T extends CustomView>(
   final notifier = ref.read(interactiveImageProvider.notifier);
   final prev = ref.read(interactiveImageProvider);
 
-  notifier.handlePageChanged(pageIndex, ref);
+  notifier.handlePageChanged(pageIndex);
 
   final next = ref.read(interactiveImageProvider);
   if (!next.suppressClearOnPageChange &&
@@ -78,7 +78,7 @@ void syncToBuildingLogic<T extends CustomView>(
   CachedSData? focusElement,
 }) {
   final notifier = ref.read(interactiveImageProvider.notifier);
-  final pageIndex = notifier.syncToBuilding(ref, focusElement: focusElement);
+  final pageIndex = notifier.syncToBuilding(focusElement: focusElement);
 
   if (pageIndex != null) {
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -38,6 +38,7 @@ dependencies:
   uuid: ^4.5.1
   freezed_annotation: ^2.0.0
   flutter_riverpod: ^2.1.1
+  flutter_svg: ^2.2.2
   firebase_core: ^4.2.0
   cloud_firestore: ^6.0.3
 
@@ -66,6 +67,10 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/images/ball.svg
+    - assets/images/玉.svg
+    - assets/images/ナ.svg
+    - assets/images/ビ.svg
     - assets/images/zenkou_1f.png
     - assets/images/zenkou_2f.png
     - assets/images/zenkou_3f.png

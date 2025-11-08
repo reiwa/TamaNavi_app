@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:test_project/models/active_building_notifier.dart';
 import 'package:test_project/models/element_data_models.dart';
+import 'package:test_project/utility/platform_utils.dart';
+import 'package:test_project/viewer/interactive_image_notifier.dart';
 import 'package:test_project/viewer/interactive_image_state.dart';
 import 'package:test_project/models/room_finder_models.dart';
 import 'package:test_project/viewer/room_finder_viewer.dart';
@@ -9,12 +11,6 @@ import 'package:test_project/viewer/room_finder_viewer.dart';
 import 'building_settings_dialog.dart';
 import 'editor_fixed_screen.dart';
 import 'editor_action_screen.dart';
-
-abstract class EditorControllerHost {
-  TextEditingController get nameController;
-  TextEditingController get xController;
-  TextEditingController get yController;
-}
 
 class EditorView extends CustomView {
   const EditorView({super.key}) : super(mode: CustomViewMode.editor);
@@ -148,6 +144,8 @@ class _EditorViewState extends ConsumerState<EditorView>
       _yController.addListener(_updateTapPositionFromTextFields);
       _nameController.addListener(_updateNameFromTextField);
 
+      pageController = PageController(initialPage: snap.floorCount - 1);
+
       isPageScrollable = canSwipeFloors;
       ref.listenManual<InteractiveImageState>(interactiveImageProvider, (
         prev,
@@ -217,7 +215,7 @@ class _EditorViewState extends ConsumerState<EditorView>
   void _updateNameFromTextField() {
     ref
         .read(interactiveImageProvider.notifier)
-        .updateElementName(_nameController.text, ref);
+        .updateElementName(_nameController.text);
   }
 
   void _updateTapPositionFromTextFields() {
@@ -244,7 +242,7 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     ref
         .read(interactiveImageProvider.notifier)
-        .updateElementPosition(relativePos, ref);
+        .updateElementPosition(relativePos);
   }
 
   void _toggleConnectionMode() {
@@ -295,9 +293,7 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     if (name.isEmpty || x == null || y == null) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text("入力エラー: 名前、X、Yを正しく入力してください。"),
-        ),
+        const SnackBar(content: Text("入力エラー: 名前、X、Yを正しく入力してください。")),
       );
       return;
     }
@@ -310,9 +306,7 @@ class _EditorViewState extends ConsumerState<EditorView>
         imageDimensions.width == 0 ||
         imageDimensions.height == 0) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text("エラー: 画像の寸法が取得できません。"),
-        ),
+        const SnackBar(content: Text("エラー: 画像の寸法が取得できません。")),
       );
       return;
     }
@@ -324,7 +318,7 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     ref
         .read(interactiveImageProvider.notifier)
-        .addElement(name: name, position: relativePos, ref: ref);
+        .addElement(name: name, position: relativePos);
   }
 
   Future<void> _handleDeletePressed() async {
@@ -367,7 +361,7 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     if (!shouldDelete || !mounted) return;
 
-    ref.read(interactiveImageProvider.notifier).deleteSelectedElement(ref);
+    ref.read(interactiveImageProvider.notifier).deleteSelectedElement();
   }
 
   @override
@@ -392,6 +386,7 @@ class _EditorViewState extends ConsumerState<EditorView>
         Expanded(
           child: Stack(
             children: [
+              buildInteractiveImage(),
               Positioned(
                 top: 12,
                 left: 16,
@@ -403,7 +398,6 @@ class _EditorViewState extends ConsumerState<EditorView>
                   ),
                 ),
               ),
-              buildInteractiveImage(),
             ],
           ),
         ),

@@ -1,9 +1,10 @@
+import 'package:test_project/models/active_building_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:test_project/models/active_building_notifier.dart';
 import 'package:test_project/models/building_snapshot.dart';
 import 'package:test_project/models/element_data_models.dart';
 import 'package:test_project/models/room_finder_models.dart';
+import 'package:test_project/viewer/interactive_image_notifier.dart';
 import 'package:test_project/viewer/interactive_image_state.dart';
 import 'package:test_project/viewer/room_finder_viewer.dart';
 import 'detail_screen.dart';
@@ -72,11 +73,11 @@ class _FinderViewState extends ConsumerState<FinderView>
 
   List<BuildingRoomInfo> _filterRooms(List<BuildingRoomInfo> sortedRooms) {
     final query = _searchController.text.trim().toLowerCase();
-    
+
     if (query.isEmpty) {
-      return sortedRooms.take(_initialDisplayLimit).toList(); 
+      return sortedRooms.take(_initialDisplayLimit).toList();
     }
-    
+
     return sortedRooms.where((info) {
       final roomName = info.room.name.toLowerCase();
       final buildingName = info.buildingName.toLowerCase();
@@ -93,29 +94,25 @@ class _FinderViewState extends ConsumerState<FinderView>
     });
   }
 
-  void _activateRoom(
-    ActiveBuildingNotifier notifier,
-    BuildingRoomInfo info, {
-    bool switchToDetail = false,
-  }) {
+  void _activateRoom(BuildingRoomInfo info, {bool switchToDetail = false}) {
     final img = ref.read(interactiveImageProvider.notifier);
-    img.activateRoom(ref, info, switchToDetail: switchToDetail);
+    img.activateRoom(info, switchToDetail: switchToDetail);
   }
 
   void _returnToSearch() {
     FocusScope.of(context).unfocus();
-    ref.read(interactiveImageProvider.notifier).returnToSearch(ref);
+    ref.read(interactiveImageProvider.notifier).returnToSearch();
   }
 
   CachedSData? _resolveNavigationTarget() {
     return ref
         .read(interactiveImageProvider.notifier)
-        .resolveNavigationTarget(ref);
+        .resolveNavigationTarget();
   }
 
   Future<void> _focusEntrance(CachedSData entrance) async {
     final notifier = ref.read(interactiveImageProvider.notifier);
-    final pageIndex = notifier.syncToBuilding(ref, focusElement: entrance);
+    final pageIndex = notifier.syncToBuilding(focusElement: entrance);
 
     if (pageIndex != null) {
       if (pageController.hasClients) {
@@ -146,7 +143,6 @@ class _FinderViewState extends ConsumerState<FinderView>
       ref
           .read(interactiveImageProvider.notifier)
           .activateRoom(
-            ref,
             BuildingRoomInfo(
               buildingId: active.id,
               buildingName: active.name,
@@ -190,7 +186,6 @@ class _FinderViewState extends ConsumerState<FinderView>
     final ok = await ref
         .read(interactiveImageProvider.notifier)
         .calculateRoute(
-          ref,
           startNodeId: startNode.id,
           targetElementId: targetElement.id,
         );
@@ -202,15 +197,11 @@ class _FinderViewState extends ConsumerState<FinderView>
     }
   }
 
-  void onTapDetected(Offset position) {
-    ref.read(interactiveImageProvider.notifier).handleTapFinder(position, ref);
-  }
-
   @override
   void syncToBuilding(BuildingSnapshot snapshot, {CachedSData? focusElement}) {
     ref
         .read(interactiveImageProvider.notifier)
-        .syncToBuilding(ref, focusElement: focusElement);
+        .syncToBuilding(focusElement: focusElement);
   }
 
   @override
@@ -268,11 +259,7 @@ class _FinderViewState extends ConsumerState<FinderView>
               setState(() {});
             },
             onRoomTap: (info) {
-              _activateRoom(
-                ref.read(activeBuildingProvider.notifier),
-                info,
-                switchToDetail: true,
-              );
+              _activateRoom(info, switchToDetail: true);
 
               final active = ref.read(activeBuildingProvider);
               pageController = PageController(
@@ -302,7 +289,7 @@ class _FinderViewState extends ConsumerState<FinderView>
                   (info) => info.room.id == value,
                   orElse: () => imageState.selectedRoomInfo!,
                 );
-                _activateRoom(ref.read(activeBuildingProvider.notifier), match);
+                _activateRoom(match);
                 await _focusEntrance(match.room);
               },
               onReturnToSearch: _returnToSearch,

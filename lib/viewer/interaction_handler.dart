@@ -16,20 +16,12 @@ void handleMarkerTapLogic<T extends CustomView>(
   bool isSelected,
   WidgetRef ref,
 ) {
-  final imgState = ref.read(interactiveImageProvider);
   final notifier = ref.read(interactiveImageProvider.notifier);
-
-  if (imgState.isConnecting && imgState.connectingStart != null) {
-    if (canConnectNodes(imgState.connectingStart!, sData)) {
-      notifier.connectToNode(sData, ref);
-      return;
-    }
-  }
 
   notifier.handleMarkerTap(sData, isSelected);
 
-  final newImgState = ref.read(interactiveImageProvider);
-  final newSelected = newImgState.selectedElement;
+  final updatedState = ref.read(interactiveImageProvider);
+  final newSelected = updatedState.selectedElement;
 
   if (host is EditorControllerHost) {
     final editor = host as EditorControllerHost;
@@ -37,7 +29,7 @@ void handleMarkerTapLogic<T extends CustomView>(
       editor.nameController.text = newSelected.name;
 
       final imageDimensions =
-          imgState.imageDimensionsByFloor[imgState.currentFloor];
+          updatedState.imageDimensionsByFloor[updatedState.currentFloor];
       if (imageDimensions != null) {
         final absolutePos = Offset(
           newSelected.position.dx * imageDimensions.width,
@@ -63,7 +55,7 @@ void handleMarkerDragEndLogic<T extends CustomView>(
 ) {
   ref
       .read(interactiveImageProvider.notifier)
-      .handleMarkerDragEnd(position, isSelected, ref);
+      .handleMarkerDragEnd(position, isSelected);
 
   final imgState = ref.read(interactiveImageProvider);
   final imageDimensions =
