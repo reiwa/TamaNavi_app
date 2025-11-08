@@ -1,6 +1,29 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:test_project/utility/animation_math.dart';
+
+Future<void> preloadSvgs(List<String> assetPaths) async {
+  final futures = <Future>[];
+  for (final path in assetPaths) {
+    final loader = SvgAssetLoader(path);
+
+    futures.add(
+          svg.cache.putIfAbsent(loader.cacheKey(null), () async {
+            try {
+              final ByteData data = await loader.loadBytes(null);
+              return data;
+            } catch (e) {
+              debugPrint('Failed to preload SVG $path: $e');
+              return ByteData(0);
+            }
+          }),
+        );
+  }
+  await Future.wait(futures);
+  debugPrint('All SVGs preloaded.');
+}
 
 class LogoSplashAnimation extends StatefulWidget {
   final VoidCallback onAnimationComplete;

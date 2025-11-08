@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:test_project/models/active_building_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,46 @@ import 'detail_screen.dart';
 import 'entrance_selector.dart';
 import 'search_screen.dart';
 
+final searchQueryProvider = StateProvider<String>((ref) => '');
+final displayLimitProvider = StateProvider<int>((ref) => 30);
+const int _limitIncrement = 30;
+
+final filteredRoomsProvider = Provider<List<BuildingRoomInfo>>((ref) {
+  final query = ref.watch(searchQueryProvider).trim().toLowerCase();
+  final sortedRooms = ref.watch(sortedBuildingRoomInfosProvider);
+  final limit = ref.watch(displayLimitProvider);
+
+  if (query.isEmpty) {
+    return sortedRooms.take(limit).toList();
+  }
+
+  return sortedRooms.where((info) {
+    final roomName = info.room.name.toLowerCase();
+    final buildingName = info.buildingName.toLowerCase();
+    final roomId = info.room.id.toLowerCase();
+    return roomName.contains(query) ||
+        buildingName.contains(query) ||
+        roomId.contains(query);
+  }).toList();
+});
+
+final canLoadMoreProvider = Provider<bool>((ref) {
+  final query = ref.watch(searchQueryProvider);
+  if (query.isNotEmpty) return false;
+
+  final limit = ref.watch(displayLimitProvider);
+  final total = ref.watch(sortedBuildingRoomInfosProvider).length;
+  return limit < total;
+});
+
+final roomsInActiveBuildingProvider = Provider<List<BuildingRoomInfo>>((ref) {
+  final sortedRoomList = ref.watch(sortedBuildingRoomInfosProvider);
+  final activeBuilding = ref.watch(activeBuildingProvider);
+  return sortedRoomList
+      .where((info) => info.buildingId == activeBuilding.id)
+      .toList();
+});
+
 class FinderView extends CustomView {
   const FinderView({super.key}) : super(mode: CustomViewMode.finder);
 
@@ -20,11 +61,7 @@ class FinderView extends CustomView {
 
 class _FinderViewState extends ConsumerState<FinderView>
     with InteractiveImageMixin<FinderView> {
-  final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-
-  int _initialDisplayLimit = 30;
-  static const int _limitIncrement = 30;
 
   @override
   void initState() {
@@ -61,37 +98,29 @@ class _FinderViewState extends ConsumerState<FinderView>
           });
         }
       });
+
+      ref.listenManual<InteractiveImageState>(interactiveImageProvider, (prev, next) {
+        if (!mounted) return;
+        final activeSnapshot = ref.read(activeBuildingProvider);
+        final correctPageIndex = activeSnapshot.floorCount - next.currentFloor;
+        if (pageController.hasClients) {
+          final current = pageController.page?.round();
+          if (current != correctPageIndex) {
+            pageController.animateToPage(
+              correctPageIndex,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.decelerate,
+            );
+          }
+        }
+      });
     });
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
-  }
-
-  List<BuildingRoomInfo> _filterRooms(List<BuildingRoomInfo> sortedRooms) {
-    final query = _searchController.text.trim().toLowerCase();
-
-    if (query.isEmpty) {
-      return sortedRooms.take(_initialDisplayLimit).toList();
-    }
-
-    return sortedRooms.where((info) {
-      final roomName = info.room.name.toLowerCase();
-      final buildingName = info.buildingName.toLowerCase();
-      final roomId = info.room.id.toLowerCase();
-      return roomName.contains(query) ||
-          buildingName.contains(query) ||
-          roomId.contains(query);
-    }).toList();
-  }
-
-  void _loadMoreRooms() {
-    setState(() {
-      _initialDisplayLimit += _limitIncrement;
-    });
   }
 
   void _activateRoom(BuildingRoomInfo info, {bool switchToDetail = false}) {
@@ -132,10 +161,10 @@ class _FinderViewState extends ConsumerState<FinderView>
   Future<void> _startNavigation() async {
     final active = ref.read(activeBuildingProvider);
     final targetElement = _resolveNavigationTarget();
+    final messenger = ScaffoldMessenger.of(context);
     if (targetElement == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('目的地が選択されていません。')));
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('目的地が選択されていません。')));
       return;
     }
 
@@ -156,9 +185,8 @@ class _FinderViewState extends ConsumerState<FinderView>
         .where((e) => e.type == PlaceType.entrance)
         .toList();
     if (entrances.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("この建物に入口が見つかりません。")));
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text("この建物に入口が見つかりません。")));
       return;
     }
 
@@ -169,7 +197,7 @@ class _FinderViewState extends ConsumerState<FinderView>
     } else {
       final initial = entrances.first;
       await _focusEntrance(initial);
-      if (!context.mounted) return;
+      if (!mounted) return;
       startNode = await showEntranceSelector(
         context: context,
         entrances: entrances,
@@ -191,9 +219,8 @@ class _FinderViewState extends ConsumerState<FinderView>
         );
 
     if (!ok) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('ルートが見つかりません。')));
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('ルートが見つかりません。')));
     }
   }
 
@@ -206,116 +233,88 @@ class _FinderViewState extends ConsumerState<FinderView>
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.watch(buildingRepositoryProvider);
-    final imageState = ref.watch(interactiveImageProvider);
-    final isLoading = repo.isLoading;
+    return Consumer(
+      builder: (context, ref, _) {
+        final isLoading = ref
+            .watch(buildingRepositoryProvider.select((s) => s.isLoading));
+        final imageState = ref.watch(interactiveImageProvider);
+        final activeBuilding = ref.watch(activeBuildingProvider);
 
-    final sortedRoomList = ref.watch(sortedBuildingRoomInfosProvider);
-    final filteredResults = _filterRooms(sortedRoomList);
-    final activeBuilding = ref.watch(activeBuildingProvider);
+        final bool isQueryEmpty = ref.watch(searchQueryProvider).isEmpty;
+        final bool canLoadMore = ref.watch(canLoadMoreProvider);
 
-    final bool isQueryEmpty = _searchController.text.trim().isEmpty;
+        final shouldShowSearch =
+            imageState.isSearchMode || imageState.selectedRoomInfo == null;
 
-    final bool canLoadMore =
-        isQueryEmpty && (filteredResults.length < sortedRoomList.length);
-
-    if (!isLoading && pageController.hasClients) {
-      final correctPageIndex =
-          activeBuilding.floorCount - imageState.currentFloor;
-
-      if (pageController.page!.round() != correctPageIndex) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && pageController.hasClients) {
-            if (pageController.page!.round() != correctPageIndex) {
-              pageController.animateToPage(
-                correctPageIndex,
-                duration: const Duration(milliseconds: 500),
-                curve: Curves.decelerate,
-              );
-            }
-          }
-        });
-      }
-    }
-
-    final shouldShowSearch =
-        imageState.isSearchMode || imageState.selectedRoomInfo == null;
-
-    final content = shouldShowSearch
-        ? FinderSearchContent(
-            isLoading: isLoading,
-            searchController: _searchController,
-            searchFocusNode: _searchFocusNode,
-            results: filteredResults,
-            isQueryEmpty: isQueryEmpty,
-            canLoadMore: canLoadMore,
-            onLoadMore: _loadMoreRooms,
-            onQueryChanged: (_) {
-              setState(() {});
-            },
-            onClearQuery: () {
-              _searchController.clear();
-              _initialDisplayLimit = 30;
-              setState(() {});
-            },
-            onRoomTap: (info) {
-              _activateRoom(info, switchToDetail: true);
-
-              final active = ref.read(activeBuildingProvider);
-              pageController = PageController(
-                initialPage: active.floorCount - 1,
-              );
-            },
-          )
-        : () {
-            final inSameBuilding = sortedRoomList
-                .where((info) => info.buildingId == activeBuilding.id)
-                .toList();
-            final hasValue = inSameBuilding.any(
-              (info) => info.room.id == imageState.currentBuildingRoomId,
-            );
-            final dropdownValue = hasValue
-                ? imageState.currentBuildingRoomId
-                : null;
-
-            return FinderDetailContent(
-              currentFloor: imageState.currentFloor,
-              dropdownValue: dropdownValue,
-              roomsInBuilding: inSameBuilding,
-              selectedRoomInfo: imageState.selectedRoomInfo,
-              onRoomSelected: (value) async {
-                if (value == null || inSameBuilding.isEmpty) return;
-                final match = inSameBuilding.firstWhere(
-                  (info) => info.room.id == value,
-                  orElse: () => imageState.selectedRoomInfo!,
+        final content = shouldShowSearch
+            ? FinderSearchContent(
+                isLoading: isLoading,
+                searchFocusNode: _searchFocusNode,
+                isQueryEmpty: isQueryEmpty,
+                canLoadMore: canLoadMore,
+                onLoadMore: () => ref
+                    .read(displayLimitProvider.notifier)
+                    .state += _limitIncrement,
+                onQueryChanged: (query) {
+                  ref.read(searchQueryProvider.notifier).state = query;
+                },
+                onClearQuery: () {
+                  ref.read(searchQueryProvider.notifier).state = '';
+                  ref.read(displayLimitProvider.notifier).state = 30;
+                },
+                onRoomTap: (info) {
+                  _activateRoom(info, switchToDetail: true);
+                },
+              )
+            : () {
+                final inSameBuilding = ref.watch(roomsInActiveBuildingProvider);
+                final hasValue = inSameBuilding.any(
+                  (info) => info.room.id == imageState.currentBuildingRoomId,
                 );
-                _activateRoom(match);
-                await _focusEntrance(match.room);
-              },
-              onReturnToSearch: _returnToSearch,
-              interactiveImage: buildInteractiveImage(),
-              selectedElementLabel: _selectedElementLabel(activeBuilding),
-              onStartNavigation: isLoading ? null : _startNavigation,
-            );
-          }();
+                final dropdownValue = hasValue
+                    ? imageState.currentBuildingRoomId
+                    : null;
 
-    return Stack(
-      children: [
-        content,
-        if (shouldShowSearch)
-          Positioned(
-            bottom: 24,
-            right: 24,
-            child: FloatingActionButton(
-              heroTag: 'focus_search',
-              onPressed: () =>
-                  FocusScope.of(context).requestFocus(_searchFocusNode),
-              backgroundColor: Colors.green,
-              tooltip: '検索ボックスにフォーカス',
-              child: const Icon(Icons.search),
-            ),
-          ),
-      ],
+                return FinderDetailContent(
+                  currentFloor: imageState.currentFloor,
+                  dropdownValue: dropdownValue,
+                  roomsInBuilding: inSameBuilding,
+                  selectedRoomInfo: imageState.selectedRoomInfo,
+                  onRoomSelected: (value) async {
+                    if (value == null || inSameBuilding.isEmpty) return;
+                    final match = inSameBuilding.firstWhere(
+                      (info) => info.room.id == value,
+                      orElse: () => imageState.selectedRoomInfo!,
+                    );
+                    _activateRoom(match);
+                    await _focusEntrance(match.room);
+                  },
+                  onReturnToSearch: _returnToSearch,
+                  interactiveImage: buildInteractiveImage(),
+                  selectedElementLabel: _selectedElementLabel(activeBuilding),
+                  onStartNavigation: isLoading ? null : _startNavigation,
+                );
+              }();
+
+        return Stack(
+          children: [
+            content,
+            if (shouldShowSearch)
+              Positioned(
+                bottom: 24,
+                right: 24,
+                child: FloatingActionButton(
+                  heroTag: 'focus_search',
+                  onPressed: () =>
+                      FocusScope.of(context).requestFocus(_searchFocusNode),
+                  backgroundColor: Colors.green,
+                  tooltip: '検索ボックスにフォーカス',
+                  child: const Icon(Icons.search),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 

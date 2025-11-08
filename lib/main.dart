@@ -33,32 +33,35 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.endOfFrame.then((_) {
+      _startDataLoading();
+    });
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final repoProvider = buildingRepositoryProvider;
-      if (!ref.read(repoProvider).isLoading) {
+  void _startDataLoading() {
+
+    final repoProvider = buildingRepositoryProvider;
+    if (!ref.read(repoProvider).isLoading) {
+      if (mounted) {
+        setState(() {
+          _isDataLoaded = true;
+        });
+        _checkAndTransition();
+      }
+    }
+
+    ref.listenManual<bool>(repoProvider.select((repo) => repo.isLoading), (
+      previous,
+      next,
+    ) {
+      if (previous == true && next == false) {
         if (mounted) {
-          
           setState(() {
             _isDataLoaded = true;
           });
           _checkAndTransition();
         }
       }
-
-      ref.listenManual<bool>(repoProvider.select((repo) => repo.isLoading), (
-        previous,
-        next,
-      ) {
-        if (previous == true && next == false) {
-          if (mounted) {
-            setState(() {
-              _isDataLoaded = true;
-            });
-            _checkAndTransition();
-          }
-        }
-      });
     });
   }
 
@@ -90,7 +93,10 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        const FinderView(),
+        Offstage(
+          offstage: _showSplash,
+          child: _isDataLoaded ? const FinderView() : const SizedBox.shrink(),
+        ),
         AnimatedOpacity(
           opacity: _showSplash ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 300),
@@ -99,8 +105,10 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
             child: Container(
               color: Theme.of(context).scaffoldBackgroundColor,
               alignment: Alignment.center,
-              child: LogoSplashAnimation(
-                onAnimationComplete: _onAnimationComplete,
+              child: RepaintBoundary(
+                child: LogoSplashAnimation(
+                  onAnimationComplete: _onAnimationComplete,
+                ),
               ),
             ),
           ),
@@ -108,6 +116,15 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
       ],
     );
   }
+}
+
+void startSvgLoading() async {
+  await preloadSvgs([
+    'assets/images/ball.svg',
+    'assets/images/玉.svg',
+    'assets/images/ナ.svg',
+    'assets/images/ビ.svg',
+  ]);
 }
 
 class RoomFinder extends StatefulWidget {
@@ -201,9 +218,16 @@ class _MyAppState extends State<MyApp> {
   bool _isMessageVisible = false;
 
   @override
+  void initState() {
+    super.initState();
+    startSvgLoading();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Hello Flutter',
+      //showPerformanceOverlay: true,
       home: Scaffold(
         appBar: AppBar(title: const Text('Hello Flutter')),
         body: Center(

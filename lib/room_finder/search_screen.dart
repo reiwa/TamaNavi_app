@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:test_project/models/room_finder_models.dart';
+import 'package:test_project/room_finder/room_finder_app.dart';
 
-class FinderSearchContent extends StatelessWidget {
+class FinderSearchContent extends HookConsumerWidget {
   const FinderSearchContent({
     super.key,
     required this.isLoading,
-    required this.searchController,
     required this.searchFocusNode,
-    required this.results,
     required this.isQueryEmpty,
     required this.canLoadMore,
     required this.onLoadMore,
@@ -17,9 +18,7 @@ class FinderSearchContent extends StatelessWidget {
   });
 
   final bool isLoading;
-  final TextEditingController searchController;
   final FocusNode searchFocusNode;
-  final List<BuildingRoomInfo> results;
   final ValueChanged<String> onQueryChanged;
   final VoidCallback onClearQuery;
   final ValueChanged<BuildingRoomInfo> onRoomTap;
@@ -28,7 +27,10 @@ class FinderSearchContent extends StatelessWidget {
   final VoidCallback onLoadMore;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(searchQueryProvider);
+    final controller = useTextEditingController(text: query);
+    final results = ref.watch(filteredRoomsProvider);
     final bool showLoadMoreButton = !isLoading && isQueryEmpty && canLoadMore;
 
     return Column(
@@ -36,14 +38,14 @@ class FinderSearchContent extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: TextField(
-            controller: searchController,
+            controller: controller,
             focusNode: searchFocusNode,
             enabled: !isLoading,
             onChanged: onQueryChanged,
             decoration: InputDecoration(
               labelText: '部屋を検索',
               labelStyle: const TextStyle(fontSize: 14),
-              suffixIcon: searchController.text.isEmpty
+              suffixIcon: query.isEmpty
                   ? null
                   : IconButton(
                       icon: const Icon(Icons.clear),
@@ -52,9 +54,10 @@ class FinderSearchContent extends StatelessWidget {
             ),
           ),
         ),
-        Expanded(
+        Flexible(
+          fit: FlexFit.loose,
           child: isLoading
-              ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox.shrink()
               : results.isEmpty
               ? const Center(
                   child: Text('該当する部屋がありません', style: TextStyle(fontSize: 13)),
@@ -78,6 +81,7 @@ class FinderSearchContent extends StatelessWidget {
                     final title = info.room.name.isEmpty
                         ? info.room.id
                         : info.room.name;
+
                     return ListTile(
                       dense: true,
                       title: Text(
