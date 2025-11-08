@@ -73,11 +73,11 @@ class _FinderViewState extends ConsumerState<FinderView>
 
   List<BuildingRoomInfo> _filterRooms(List<BuildingRoomInfo> sortedRooms) {
     final query = _searchController.text.trim().toLowerCase();
-    
+
     if (query.isEmpty) {
-      return sortedRooms.take(_initialDisplayLimit).toList(); 
+      return sortedRooms.take(_initialDisplayLimit).toList();
     }
-    
+
     return sortedRooms.where((info) {
       final roomName = info.room.name.toLowerCase();
       final buildingName = info.buildingName.toLowerCase();
@@ -94,10 +94,7 @@ class _FinderViewState extends ConsumerState<FinderView>
     });
   }
 
-  void _activateRoom(
-    BuildingRoomInfo info, {
-    bool switchToDetail = false,
-  }) {
+  void _activateRoom(BuildingRoomInfo info, {bool switchToDetail = false}) {
     final img = ref.read(interactiveImageProvider.notifier);
     img.activateRoom(info, switchToDetail: switchToDetail);
   }
@@ -168,7 +165,7 @@ class _FinderViewState extends ConsumerState<FinderView>
     CachedSData? startNode;
     if (entrances.length == 1) {
       startNode = entrances.first;
-  await _focusEntrance(startNode);
+      await _focusEntrance(startNode);
     } else {
       final initial = entrances.first;
       await _focusEntrance(initial);
@@ -262,10 +259,7 @@ class _FinderViewState extends ConsumerState<FinderView>
               setState(() {});
             },
             onRoomTap: (info) {
-              _activateRoom(
-                info,
-                switchToDetail: true,
-              );
+              _activateRoom(info, switchToDetail: true);
 
               final active = ref.read(activeBuildingProvider);
               pageController = PageController(

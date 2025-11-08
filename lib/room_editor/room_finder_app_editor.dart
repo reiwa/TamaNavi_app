@@ -242,7 +242,7 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     ref
         .read(interactiveImageProvider.notifier)
-    .updateElementPosition(relativePos);
+        .updateElementPosition(relativePos);
   }
 
   void _toggleConnectionMode() {
@@ -293,9 +293,7 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     if (name.isEmpty || x == null || y == null) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text("入力エラー: 名前、X、Yを正しく入力してください。"),
-        ),
+        const SnackBar(content: Text("入力エラー: 名前、X、Yを正しく入力してください。")),
       );
       return;
     }
@@ -308,9 +306,7 @@ class _EditorViewState extends ConsumerState<EditorView>
         imageDimensions.width == 0 ||
         imageDimensions.height == 0) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text("エラー: 画像の寸法が取得できません。"),
-        ),
+        const SnackBar(content: Text("エラー: 画像の寸法が取得できません。")),
       );
       return;
     }
@@ -322,7 +318,7 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     ref
         .read(interactiveImageProvider.notifier)
-    .addElement(name: name, position: relativePos);
+        .addElement(name: name, position: relativePos);
   }
 
   Future<void> _handleDeletePressed() async {
@@ -365,7 +361,7 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     if (!shouldDelete || !mounted) return;
 
-  ref.read(interactiveImageProvider.notifier).deleteSelectedElement();
+    ref.read(interactiveImageProvider.notifier).deleteSelectedElement();
   }
 
   @override
