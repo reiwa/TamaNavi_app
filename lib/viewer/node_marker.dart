@@ -89,14 +89,19 @@ class _NodeMarkerState extends State<NodeMarker> {
         },
         onScaleUpdate: (details) {
           if (!_canDrag || !_isDragging) return;
-          if (details.scale != 1.0) return;
+          // Allow slight noise in the scale value while dragging.
+          if ((details.scale - 1.0).abs() > 0.02) return;
+
           final relativeDelta = Offset(
             details.focalPointDelta.dx / widget.imageDimensions.width,
             details.focalPointDelta.dy / widget.imageDimensions.height,
           );
 
-          final nextRelative =
-              (_dragOverride ?? widget.data.position) + relativeDelta;
+          final current = _dragOverride ?? widget.data.position;
+          final nextRelative = Offset(
+            (current.dx + relativeDelta.dx).clamp(0.0, 1.0),
+            (current.dy + relativeDelta.dy).clamp(0.0, 1.0),
+          );
 
           _dragOverride = nextRelative;
           widget.onDragUpdate(nextRelative);

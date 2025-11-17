@@ -8,56 +8,52 @@ import 'package:tamanavi_app/models/room_finder_models.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'package:tamanavi_app/viewer/interactive_image_state.dart';
 import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
+import 'package:tamanavi_app/room_finder/settings_dialog.dart';
 import 'detail_screen.dart';
-import 'entrance_selector.dart';
 import 'search_screen.dart';
+import 'entrance_selector.dart';
 
-final searchQueryProvider = StateProvider<String>((ref) => '');
-final displayLimitProvider = StateProvider<int>((ref) => 30);
-const int _limitIncrement = 30;
+const List<String> kFinderTagOptions = kBuildingTagOptions;
 
-final debouncedQueryProvider = FutureProvider<String>((ref) async {
-  final query = ref.watch(searchQueryProvider);
+final selectedTagProvider = StateProvider<String>((ref) => kFinderTagOptions.first);
 
-  await Future.delayed(const Duration(milliseconds: 300));
+final tagSearchResultsProvider =
+    FutureProvider<List<BuildingRoomInfo>>((ref) async {
+  final selectedTag = ref.watch(selectedTagProvider);
 
-  return query.trim().toLowerCase();
-});
+  await ref
+      .read(buildingRepositoryProvider.notifier)
+      .fetchBuildingsByTag(selectedTag);
 
-final filteredRoomsProvider = Provider<List<BuildingRoomInfo>>((ref) {
-  final query = ref.watch(debouncedQueryProvider);
-  final sortedRooms = ref.watch(sortedBuildingRoomInfosProvider);
-  final limit = ref.watch(displayLimitProvider);
+  final map = ref.read(buildingRepositoryProvider).asData?.value ??
+      const <String, BuildingSnapshot>{};
 
-  return query.when(
-    data: (query) {
-      if (query.isEmpty) {
-        return sortedRooms.take(limit).toList();
-      }
+  final results = <BuildingRoomInfo>[];
+  for (final snapshot in map.values) {
+    if (snapshot.id == kDraftBuildingId) continue;
+    if (!snapshot.tags.contains(selectedTag)) continue;
+    for (final room in snapshot.rooms) {
+      results.add(
+        BuildingRoomInfo(
+          buildingId: snapshot.id,
+          buildingName: snapshot.name,
+          room: room,
+        ),
+      );
+    }
+  }
 
-      return sortedRooms
-          .where((info) {
-            final roomName = info.room.name.toLowerCase();
-            final buildingName = info.buildingName.toLowerCase();
-            return roomName.contains(query) ||
-                buildingName.contains(query);
-          })
-          .take(limit)
-          .toList();
-    },
-    loading: () =>
-        sortedRooms.take(limit).toList(),
-    error: (e, s) => [],
-  );
-});
+  results.sort((a, b) {
+    final buildingCompare = a.buildingName.compareTo(b.buildingName);
+    if (buildingCompare != 0) return buildingCompare;
+    final aName = a.room.name.isEmpty ? a.room.id : a.room.name;
+    final bName = b.room.name.isEmpty ? b.room.id : b.room.name;
+    final roomCompare = aName.compareTo(bName);
+    if (roomCompare != 0) return roomCompare;
+    return a.room.id.compareTo(b.room.id);
+  });
 
-final canLoadMoreProvider = Provider<bool>((ref) {
-  final query = ref.watch(searchQueryProvider);
-  if (query.isNotEmpty) return false;
-
-  final limit = ref.watch(displayLimitProvider);
-  final total = ref.watch(sortedBuildingRoomInfosProvider).length;
-  return limit < total;
+  return results;
 });
 
 final roomsInActiveBuildingProvider = Provider<List<BuildingRoomInfo>>((ref) {
@@ -68,8 +64,50 @@ final roomsInActiveBuildingProvider = Provider<List<BuildingRoomInfo>>((ref) {
       .toList();
 });
 
+@immutable
+class FinderLaunchIntent {
+  const FinderLaunchIntent({this.navigateTo, this.navigateFrom});
+
+  final String? navigateTo;
+  final String? navigateFrom;
+
+  bool get hasNavigateTo => navigateTo != null && navigateTo!.isNotEmpty;
+  bool get hasNavigateFrom => navigateFrom != null && navigateFrom!.isNotEmpty;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! FinderLaunchIntent) return false;
+    return other.navigateTo == navigateTo &&
+        other.navigateFrom == navigateFrom;
+  }
+
+  @override
+  int get hashCode => Object.hash(navigateTo, navigateFrom);
+
+  static FinderLaunchIntent? maybeFrom({
+    String? navigateTo,
+    String? navigateFrom,
+  }) {
+    final sanitizedTo = navigateTo?.trim();
+    final sanitizedFrom = navigateFrom?.trim();
+    final hasTo = sanitizedTo != null && sanitizedTo.isNotEmpty;
+    final hasFrom = sanitizedFrom != null && sanitizedFrom.isNotEmpty;
+    if (!hasTo && !hasFrom) {
+      return null;
+    }
+    return FinderLaunchIntent(
+      navigateTo: hasTo ? sanitizedTo : null,
+      navigateFrom: hasFrom ? sanitizedFrom : null,
+    );
+  }
+}
+
 class FinderView extends CustomView {
-  const FinderView({super.key}) : super(mode: CustomViewMode.finder);
+  const FinderView({super.key, this.initialIntent})
+      : super(mode: CustomViewMode.finder);
+
+  final FinderLaunchIntent? initialIntent;
 
   @override
   ConsumerState<FinderView> createState() => _FinderViewState();
@@ -77,19 +115,32 @@ class FinderView extends CustomView {
 
 class _FinderViewState extends ConsumerState<FinderView>
     with InteractiveImageMixin<FinderView> {
-  final FocusNode _searchFocusNode = FocusNode();
+  FinderLaunchIntent? _pendingIntent;
+  bool _firstFrameRendered = false;
+  bool _isProcessingIntent = false;
+  ProviderSubscription<AsyncValue<Map<String, BuildingSnapshot>>>?
+      _repositorySubscription;
 
   @override
   void initState() {
     super.initState();
 
+    _pendingIntent = widget.initialIntent;
+
     pageController = PageController();
 
+    _repositorySubscription =
+        ref.listenManual<AsyncValue<Map<String, BuildingSnapshot>>>(
+      buildingRepositoryProvider,
+      (previous, next) {
+        if (!mounted) return;
+        next.whenData((_) => _maybeProcessPendingIntent());
+      },
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final rooms = ref.read(buildingRoomInfosProvider);
-      if (rooms.isEmpty) {
-        ref.read(buildingRepositoryProvider.notifier).refresh();
-      }
+      if (!mounted) return;
+      _firstFrameRendered = true;
 
       final active = ref.read(activeBuildingProvider);
       final notifier = ref.read(interactiveImageProvider.notifier);
@@ -133,18 +184,37 @@ class _FinderViewState extends ConsumerState<FinderView>
           }
         }
       });
+
+      _maybeProcessPendingIntent();
     });
   }
 
   @override
+  void didUpdateWidget(covariant FinderView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialIntent != oldWidget.initialIntent) {
+      _pendingIntent = widget.initialIntent;
+      _maybeProcessPendingIntent();
+    }
+  }
+
+  @override
   void dispose() {
-    _searchFocusNode.dispose();
+    _repositorySubscription?.close();
     super.dispose();
   }
 
-  void _activateRoom(BuildingRoomInfo info, {bool switchToDetail = false}) {
+  void _activateRoom(
+    BuildingRoomInfo info, {
+    bool switchToDetail = false,
+    bool autoNavigate = true,
+  }) {
     final img = ref.read(interactiveImageProvider.notifier);
-    img.activateRoom(info, switchToDetail: switchToDetail);
+    img.activateRoom(
+      info,
+      switchToDetail: switchToDetail,
+      autoNavigate: autoNavigate,
+    );
   }
 
   void _returnToSearch() {
@@ -158,9 +228,9 @@ class _FinderViewState extends ConsumerState<FinderView>
         .resolveNavigationTarget();
   }
 
-  Future<void> _focusEntrance(CachedSData entrance) async {
+  Future<void> _focusOnElement(CachedSData element) async {
     final notifier = ref.read(interactiveImageProvider.notifier);
-    final pageIndex = notifier.syncToBuilding(focusElement: entrance);
+    final pageIndex = notifier.syncToBuilding(focusElement: element);
 
     if (pageIndex != null) {
       if (pageController.hasClients) {
@@ -173,24 +243,25 @@ class _FinderViewState extends ConsumerState<FinderView>
         if (mounted) {
           notifier.applyPendingFocusIfAny();
         }
+      } else {
+        notifier.applyPendingFocusIfAny();
       }
     }
   }
 
-  Future<void> _startNavigation() async {
+  Future<void> _startNavigation({
+    String? startElementId,
+    bool promptForEntranceSelection = false,
+  }) async {
     final active = ref.read(activeBuildingProvider);
     final targetElement = _resolveNavigationTarget();
-    final messenger = ScaffoldMessenger.of(context);
     if (targetElement == null) {
-      if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('目的地が選択されていません。')));
+      _showSnackBar('目的地が選択されていません。');
       return;
     }
 
     if (targetElement.type == PlaceType.room && mounted) {
-      ref
-          .read(interactiveImageProvider.notifier)
-          .activateRoom(
+      ref.read(interactiveImageProvider.notifier).activateRoom(
             BuildingRoomInfo(
               buildingId: active.id,
               buildingName: active.name,
@@ -200,35 +271,46 @@ class _FinderViewState extends ConsumerState<FinderView>
           );
     }
 
-    final entrances = active.elements
-        .where((e) => e.type == PlaceType.entrance)
-        .toList();
-    if (entrances.isEmpty) {
-      if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text("この建物に入口が見つかりません。")));
-      return;
-    }
-
     CachedSData? startNode;
-    if (entrances.length == 1) {
-      startNode = entrances.first;
-      await _focusEntrance(startNode);
+    if (startElementId != null) {
+      startNode = _findElementById(active, startElementId);
+      if (startNode == null) {
+        _showSnackBar('出発地点が見つかりません: $startElementId');
+        return;
+      }
     } else {
-      final initial = entrances.first;
-      await _focusEntrance(initial);
-      if (!mounted) return;
-      startNode = await showEntranceSelector(
-        context: context,
-        entrances: entrances,
-        initialId: initial.id,
-        onFocus: (focusEntrance) => _focusEntrance(focusEntrance),
-      );
+      final entrances = active.elements
+          .where((e) => e.type == PlaceType.entrance)
+          .toList();
+      if (entrances.isEmpty) {
+        _showSnackBar('この建物に入口が見つかりません。');
+        return;
+      }
+      if (promptForEntranceSelection && entrances.length > 1) {
+        final selectedEntrance = await showEntranceSelector(
+          context: context,
+          entrances: entrances,
+          initialId: entrances.first.id,
+          onFocus: (entrance) {
+            _focusOnElement(entrance);
+          },
+        );
 
-      ref
-          .read(interactiveImageProvider.notifier)
-          .selectElementOnly(targetElement);
+        if (!mounted) return;
+        if (selectedEntrance == null) {
+          return;
+        }
+        startNode = selectedEntrance;
+      } else {
+        startNode = entrances.first;
+      }
     }
-    if (startNode == null) return;
+
+    await _focusOnElement(startNode);
+
+    ref
+        .read(interactiveImageProvider.notifier)
+        .selectElementOnly(targetElement);
 
     final ok = await ref
         .read(interactiveImageProvider.notifier)
@@ -238,9 +320,110 @@ class _FinderViewState extends ConsumerState<FinderView>
         );
 
     if (!ok) {
-      if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('ルートが見つかりません。')));
+      _showSnackBar('ルートが見つかりません。');
     }
+  }
+
+  Future<void> _maybeProcessPendingIntent() async {
+    if (_pendingIntent == null || !_firstFrameRendered || _isProcessingIntent) {
+      return;
+    }
+
+    final intent = _pendingIntent!;
+    if (!intent.hasNavigateTo) {
+      _pendingIntent = null;
+      return;
+    }
+
+    _isProcessingIntent = true;
+    try {
+      final targetRoomId = intent.navigateTo!;
+      var rooms = ref.read(sortedBuildingRoomInfosProvider);
+      BuildingRoomInfo? targetInfo;
+
+      for (final info in rooms) {
+        if (info.room.id == targetRoomId) {
+          targetInfo = info;
+          break;
+        }
+      }
+
+      if (targetInfo == null) {
+        final snapshot = await ref
+            .read(buildingRepositoryProvider.notifier)
+            .fetchBuildingContainingRoom(targetRoomId);
+        if (snapshot == null) {
+          _pendingIntent = null;
+          _showSnackBar('指定された部屋が見つかりません: ${intent.navigateTo}');
+          return;
+        }
+        rooms = ref.read(sortedBuildingRoomInfosProvider);
+        for (final info in rooms) {
+          if (info.room.id == targetRoomId) {
+            targetInfo = info;
+            break;
+          }
+        }
+      }
+
+      if (targetInfo == null) {
+        _pendingIntent = null;
+        _showSnackBar('指定された部屋が見つかりません: ${intent.navigateTo}');
+        return;
+      }
+
+      final resolvedTarget = targetInfo;
+      _pendingIntent = null;
+
+      final buildingSnapshot = ref
+          .read(buildingRepositoryProvider)
+          .asData
+          ?.value[resolvedTarget.buildingId];
+      if (buildingSnapshot != null && buildingSnapshot.tags.isNotEmpty) {
+        final currentTag = ref.read(selectedTagProvider);
+        if (!buildingSnapshot.tags.contains(currentTag)) {
+          ref.read(selectedTagProvider.notifier).state =
+              buildingSnapshot.tags.first;
+        }
+      }
+
+      Future.microtask(() async {
+        if (!mounted) return;
+
+        _activateRoom(
+          resolvedTarget,
+          switchToDetail: true,
+          autoNavigate: false,
+        );
+
+        await Future.delayed(const Duration(milliseconds: 50));
+        if (!mounted) return;
+
+        if (intent.hasNavigateFrom) {
+          await _startNavigation(startElementId: intent.navigateFrom);
+        } else {
+          await _focusOnElement(resolvedTarget.room);
+        }
+      });
+    } finally {
+      _isProcessingIntent = false;
+    }
+  }
+
+  CachedSData? _findElementById(BuildingSnapshot snapshot, String id) {
+    for (final element in snapshot.elements) {
+      if (element.id == id) {
+        return element;
+      }
+    }
+    return null;
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -254,40 +437,29 @@ class _FinderViewState extends ConsumerState<FinderView>
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, _) {
-        final isLoading = ref.watch(
-          buildingRepositoryProvider.select((s) => s.isLoading),
+        final isSearchMode = ref.watch(
+          interactiveImageProvider.select((s) => s.isSearchMode),
         );
-        final imageState = ref.watch(interactiveImageProvider);
-        final activeBuilding = ref.watch(activeBuildingProvider);
+        final selectedRoomInfo = ref.watch(
+          interactiveImageProvider.select((s) => s.selectedRoomInfo),
+        );
 
-        final bool isQueryEmpty = ref.watch(searchQueryProvider).isEmpty;
-        final bool canLoadMore = ref.watch(canLoadMoreProvider);
-
-        final shouldShowSearch =
-            imageState.isSearchMode || imageState.selectedRoomInfo == null;
+        final shouldShowSearch = isSearchMode || selectedRoomInfo == null;
 
         final content = shouldShowSearch
             ? FinderSearchContent(
-                isLoading: isLoading,
-                searchFocusNode: _searchFocusNode,
-                isQueryEmpty: isQueryEmpty,
-                canLoadMore: canLoadMore,
-                onLoadMore: () =>
-                    ref.read(displayLimitProvider.notifier).state +=
-                        _limitIncrement,
-                onQueryChanged: (query) {
-                  ref.read(searchQueryProvider.notifier).state = query;
-                },
-                onClearQuery: () {
-                  ref.read(searchQueryProvider.notifier).state = '';
-                  ref.read(displayLimitProvider.notifier).state = 30;
+                onTagSelected: (tag) {
+                  ref.read(selectedTagProvider.notifier).state = tag;
                 },
                 onRoomTap: (info) {
                   _activateRoom(info, switchToDetail: true);
                 },
               )
             : () {
+                final imageState = ref.watch(interactiveImageProvider);
+                final activeBuilding = ref.watch(activeBuildingProvider);
                 final inSameBuilding = ref.watch(roomsInActiveBuildingProvider);
+
                 final hasValue = inSameBuilding.any(
                   (info) => info.room.id == imageState.currentBuildingRoomId,
                 );
@@ -307,16 +479,22 @@ class _FinderViewState extends ConsumerState<FinderView>
                       orElse: () => imageState.selectedRoomInfo!,
                     );
                     _activateRoom(match);
-                    await _focusEntrance(match.room);
+                    await _focusOnElement(match.room);
                   },
                   onReturnToSearch: _returnToSearch,
                   interactiveImage: buildInteractiveImage(),
                   selectedElementLabel: _selectedElementLabel(activeBuilding),
-                  onStartNavigation: isLoading ? null : _startNavigation,
+                  onStartNavigation: () =>
+                      _startNavigation(promptForEntranceSelection: true),
                 );
               }();
 
-        return content;
+        return Column(
+          children: [
+            SafeArea(bottom: false, child: _buildHeader(context)),
+            Expanded(child: content),
+          ],
+        );
       },
     );
   }
@@ -332,5 +510,29 @@ class _FinderViewState extends ConsumerState<FinderView>
       return r.name.isNotEmpty ? r.name : r.id;
     }
     return '-';
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.lightGreen.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          Expanded(child: SizedBox.shrink()),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: '設定',
+            onPressed: () => showFinderSettingsDialog(context),
+          ),
+        ],
+      ),
+    );
   }
 }

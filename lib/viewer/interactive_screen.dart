@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/utility/platform_utils.dart';
@@ -144,8 +148,10 @@ class _InteractiveContent extends ConsumerStatefulWidget {
 
 class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     with SingleTickerProviderStateMixin {
-  ImageStream? _imageStream;
-  ImageStreamListener? _imageStreamListener;
+  static const int _maxSvgBytes = 2 * 1024 * 1024;
+
+  Future<_SvgPayload>? _svgFuture;
+  int _svgLoadToken = 0;
 
   late AnimationController _iconController;
   late Animation<double> _iconAnimation;
@@ -154,7 +160,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
   @override
   void initState() {
     super.initState();
-    _loadImageDimensions();
+    _reloadSvg();
 
     _iconController = AnimationController(
       vsync: this,
@@ -167,43 +173,57 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
 
     _subscribeToImageState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final currentSelected = ref
-          .read(interactiveImageProvider)
-          .selectedElement;
-      if (currentSelected != null && currentSelected.floor == widget.floor) {
-        _iconController.forward(from: 0.0);
-      }
-    });
+    if (widget.self.showSelectedPin) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final currentSelected = ref
+            .read(interactiveImageProvider)
+            .selectedElement;
+        if (currentSelected != null && currentSelected.floor == widget.floor) {
+          _iconController.forward(from: 0.0);
+        }
+      });
+    }
   }
 
   @override
   void didUpdateWidget(_InteractiveContent oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageUrl != widget.imageUrl) {
-      _loadImageDimensions();
+      _reloadSvg();
     }
 
     if (oldWidget.floor != widget.floor) {
       _subscribeToImageState();
+      final hasDimensions = ref
+              .read(interactiveImageProvider)
+              .imageDimensionsByFloor
+              .containsKey(widget.floor) &&
+          ref
+                  .read(interactiveImageProvider)
+                  .imageDimensionsByFloor[widget.floor] !=
+              null;
+      if (!hasDimensions) {
+        _reloadSvg();
+      }
     }
   }
 
-  void _loadImageDimensions() {
-    final image = Image.network(widget.imageUrl);
-    final nextStream = image.image.resolve(const ImageConfiguration());
+  void _reloadSvg() {
+    final imageUrl = widget.imageUrl;
+    final loadId = ++_svgLoadToken;
 
-    _imageStreamListener ??= ImageStreamListener(_onImageLoad);
+    final future = _fetchSvg(imageUrl);
+    _svgFuture = future;
+    setState(() {});
 
-    if (_imageStream != null && _imageStreamListener != null) {
-      _imageStream!.removeListener(_imageStreamListener!);
-    }
-
-    _imageStream = nextStream;
-    if (_imageStreamListener != null) {
-      _imageStream!.addListener(_imageStreamListener!);
-    }
+    future.then((payload) {
+      if (!mounted || loadId != _svgLoadToken) return;
+      final notifier = ref.read(interactiveImageProvider.notifier);
+      notifier.setImageDimensions(widget.floor, payload.size);
+    }).catchError((_) {
+      // Loading errors are surfaced via FutureBuilder; nothing to do here.
+    });
   }
 
   void _subscribeToImageState() {
@@ -218,6 +238,12 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     InteractiveImageState? previous,
     InteractiveImageState next,
   ) {
+    if (!widget.self.showSelectedPin) {
+      if (_iconController.status != AnimationStatus.dismissed) {
+        _iconController.reset();
+      }
+      return;
+    }
     final wasSelected = previous?.selectedElement != null;
     final isSelected = next.selectedElement != null;
 
@@ -228,28 +254,8 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     }
   }
 
-  void _onImageLoad(ImageInfo imageInfo, bool synchronousCall) {
-    if (!mounted) return;
-    final size = Size(
-      imageInfo.image.width.toDouble(),
-      imageInfo.image.height.toDouble(),
-    );
-
-    setState(() {});
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref
-          .read(interactiveImageProvider.notifier)
-          .setImageDimensions(widget.floor, size);
-    });
-  }
-
   @override
   void dispose() {
-    if (_imageStreamListener != null) {
-      _imageStream?.removeListener(_imageStreamListener!);
-    }
     _imageStateSubscription?.close();
     _iconController.dispose();
     super.dispose();
@@ -268,15 +274,18 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     final selected = imageState.selectedElement;
     final isSelectedOnThisFloor =
         selected != null && selected.floor == widget.floor;
+    final shouldShowPin = widget.self.showSelectedPin && isSelectedOnThisFloor;
 
-    if (isSelectedOnThisFloor) {
-      if (_iconController.status == AnimationStatus.dismissed) {
-        _iconController.forward();
-      }
-    } else {
-      if (_iconController.status != AnimationStatus.dismissed) {
+    if (widget.self.showSelectedPin) {
+      if (shouldShowPin) {
+        if (_iconController.status == AnimationStatus.dismissed) {
+          _iconController.forward();
+        }
+      } else if (_iconController.status != AnimationStatus.dismissed) {
         _iconController.reset();
       }
+    } else if (_iconController.status != AnimationStatus.dismissed) {
+      _iconController.reset();
     }
 
     final transformationController = ref
@@ -306,16 +315,37 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Image.network(
-            widget.imageUrl,
-            width: displaySize.width,
-            height: displaySize.height,
-            filterQuality: FilterQuality.medium,
-            errorBuilder: (context, error, stackTrace) {
-              return Center(
-                child: Text(
-                  '${widget.floor}階の画像が見つかりません\n(${widget.imageUrl})',
-                ),
+          FutureBuilder<_SvgPayload>(
+            future: _svgFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return SizedBox(
+                  width: displaySize.width,
+                  height: displaySize.height,
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError || snapshot.data == null) {
+                return SizedBox(
+                  width: displaySize.width,
+                  height: displaySize.height,
+                  child: Center(
+                    child: Text(
+                      '${widget.floor}階の画像が読み込めません\n(${widget.imageUrl})',
+                    ),
+                  ),
+                );
+              }
+
+              final payload = snapshot.data!;
+              return SvgPicture.memory(
+                payload.bytes,
+                width: displaySize.width,
+                height: displaySize.height,
+                fit: BoxFit.contain,
               );
             },
           ),
@@ -374,7 +404,8 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
                         ref: widget.ref,
                         imageDimensions: displaySize,
                       ),
-                    if (imageState.selectedElement != null) ...[
+                    if (widget.self.showSelectedPin &&
+                        imageState.selectedElement != null) ...[
                       Builder(
                         builder: (context) {
                           final element = imageState.selectedElement!;
@@ -408,6 +439,89 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       ),
     );
   }
+}
+
+class _SvgPayload {
+  const _SvgPayload({required this.bytes, required this.size});
+
+  final Uint8List bytes;
+  final Size size;
+}
+
+final Map<String, Future<_SvgPayload>> _svgPayloadCache = {};
+
+Future<_SvgPayload> _fetchSvg(String url) {
+  final cached = _svgPayloadCache[url];
+  if (cached != null) {
+    return cached;
+  }
+
+  final future = () async {
+    final storageRef = FirebaseStorage.instance.refFromURL(url);
+    final rawBytes =
+        await storageRef.getData(_InteractiveContentState._maxSvgBytes);
+    if (rawBytes == null || rawBytes.isEmpty) {
+      throw StateError('Empty SVG data for $url');
+    }
+    final size = _parseSvgSize(rawBytes);
+    return _SvgPayload(bytes: rawBytes, size: size);
+  }();
+
+  _svgPayloadCache[url] = future.catchError((error, stackTrace) {
+    _svgPayloadCache.remove(url);
+    throw error;
+  });
+
+  return future;
+}
+
+Size _parseSvgSize(Uint8List svgBytes) {
+  final svgString = utf8.decode(svgBytes);
+  final width = _parseSvgLength(_extractSvgAttribute(svgString, 'width'));
+  final height = _parseSvgLength(_extractSvgAttribute(svgString, 'height'));
+
+  if (width != null && height != null && width > 0 && height > 0) {
+    return Size(width, height);
+  }
+
+  final viewBox = _extractSvgAttribute(svgString, 'viewBox');
+  if (viewBox != null) {
+    final parts = viewBox
+        .split(RegExp(r'[\s,]+'))
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (parts.length == 4) {
+      final vbWidth = double.tryParse(parts[2]);
+      final vbHeight = double.tryParse(parts[3]);
+      if (vbWidth != null && vbHeight != null && vbWidth > 0 && vbHeight > 0) {
+        return Size(vbWidth, vbHeight);
+      }
+    }
+  }
+
+  // Fallback to a square canvas when no explicit sizing is present.
+  return const Size.square(1024);
+}
+
+String? _extractSvgAttribute(String svgContent, String attribute) {
+  final regex =
+      RegExp('$attribute\\s*=\\s*"([^"]+)"', caseSensitive: false);
+  final match = regex.firstMatch(svgContent);
+  return match?.group(1)?.trim();
+}
+
+double? _parseSvgLength(String? rawValue) {
+  if (rawValue == null || rawValue.isEmpty) {
+    return null;
+  }
+
+  final trimmed = rawValue.trim();
+  final valueMatch = RegExp(r'(-?\d*\.?\d+)').firstMatch(trimmed);
+  if (valueMatch == null) {
+    return null;
+  }
+
+  return double.tryParse(valueMatch.group(1)!);
 }
 
 class _GestureLayer extends StatelessWidget {
@@ -528,7 +642,7 @@ class _TapDot extends StatelessWidget {
             name: '新しい要素',
             position: relativeTapPos,
             floor: floor,
-            type: self.currentType,
+            type: imageState.currentType,
           );
           ref.read(activeBuildingProvider.notifier).addSData(newSData);
 

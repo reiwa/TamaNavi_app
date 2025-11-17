@@ -1,10 +1,7 @@
 part of 'room_finder_viewer.dart';
 
 class _FloorPageView extends ConsumerWidget {
-  const _FloorPageView({
-    required this.self,
-    required this.floor,
-  });
+  const _FloorPageView({required this.self, required this.floor});
 
   final InteractiveImageMixin self;
   final int floor;
@@ -75,15 +72,14 @@ class _FloorPageView extends ConsumerWidget {
       );
     }
 
-    for (final edgeSet in snap.passages.expand(
-      (pData) => pData.edges,
-    )) {
+    for (final edgeSet in snap.passages.expand((pData) => pData.edges)) {
       if (edgeSet.length != 2) continue;
       final ids = edgeSet.toList(growable: false);
       final first = elementsById[ids[0]];
       final second = elementsById[ids[1]];
       if (first == null || second == null) continue;
-      if (first.type != PlaceType.elevator || second.type != PlaceType.elevator) {
+      if (first.type != PlaceType.elevator ||
+          second.type != PlaceType.elevator) {
         continue;
       }
       if (first.floor == second.floor) continue;
@@ -91,7 +87,7 @@ class _FloorPageView extends ConsumerWidget {
       pushElevatorLink(second, first);
     }
 
-  final imageState = ref.watch(interactiveImageProvider);
+    final imageState = ref.watch(interactiveImageProvider);
 
     Edge? previewEdge;
     if (imageState.isConnecting &&
@@ -104,30 +100,46 @@ class _FloorPageView extends ConsumerWidget {
       );
     }
 
-    final imageKey = (
-      imagePattern: snap.imagePattern,
-      floor: floor,
-    );
+    final imagePattern = snap.imagePattern.trim();
+    final imageKey = (imagePattern: imagePattern, floor: floor);
     final imageUrlValue = ref.watch(floorImageUrlProvider(imageKey));
 
-  void scheduleDeferredPrefetch() {
-      if (snap.imagePattern.isEmpty) return;
+    void scheduleDeferredPrefetch() {
+      if (imagePattern.isEmpty) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
         Future.microtask(() async {
           if (!context.mounted) return;
-          final prefetchNotifier =
-              ref.read(floorImagePrefetchNotifierProvider.notifier);
+          final prefetchNotifier = ref.read(
+            floorImagePrefetchNotifierProvider.notifier,
+          );
           for (var f = 1; f <= snap.floorCount; f++) {
             if (f == floor) continue;
-            final key = (
-              imagePattern: snap.imagePattern,
-              floor: f,
-            );
+            final key = (imagePattern: imagePattern, floor: f);
             await prefetchNotifier.ensurePrefetched(context, key);
           }
         });
       });
+    }
+
+    String buildImageErrorText(Object error) {
+      if (error is FloorImagePatternMissingException) {
+        return error.message;
+      }
+      if (error is FirebaseException) {
+        final message = error.message?.trim() ?? '';
+        final code = error.code.trim();
+        final details = <String>[];
+        if (message.isNotEmpty) {
+          details.add(message);
+        }
+        if (code.isNotEmpty) {
+          details.add('[${error.code}]');
+        }
+        final suffix = details.isEmpty ? '' : '\n${details.join(' ')}';
+        return '$floor階の画像を取得できませんでした$suffix';
+      }
+      return '$floor階の画像を取得できませんでした\n${error.toString()}';
     }
 
     return LayoutBuilder(
@@ -137,13 +149,13 @@ class _FloorPageView extends ConsumerWidget {
           constraints.maxWidth.isFinite
               ? constraints.maxWidth
               : (constraints.minWidth.isFinite
-                  ? constraints.minWidth
-                  : mediaSize.width),
+                    ? constraints.minWidth
+                    : mediaSize.width),
           constraints.maxHeight.isFinite
               ? constraints.maxHeight
               : (constraints.minHeight.isFinite
-                  ? constraints.minHeight
-                  : mediaSize.height),
+                    ? constraints.minHeight
+                    : mediaSize.height),
         );
         return Container(
           decoration: BoxDecoration(
@@ -180,12 +192,10 @@ class _FloorPageView extends ConsumerWidget {
                 ],
               );
             },
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stackTrace) => Center(
               child: Text(
-                '$floor階の画像を取得できませんでした\n${error.toString()}',
+                buildImageErrorText(error),
                 textAlign: TextAlign.center,
               ),
             ),

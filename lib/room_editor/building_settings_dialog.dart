@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tamanavi_app/models/building_snapshot.dart';
 
 class BuildingSettings {
   final String buildingName;
   final int floorCount;
   final String imageNamePattern;
+  final List<String> tags;
 
   BuildingSettings({
     required this.buildingName,
     required this.floorCount,
     required this.imageNamePattern,
+    required this.tags,
   });
 }
 
@@ -17,12 +20,14 @@ class SettingsDialog extends StatefulWidget {
   final String initialBuildingName;
   final int initialFloorCount;
   final String initialImagePattern;
+  final List<String> initialTags;
 
   const SettingsDialog({
     super.key,
     required this.initialBuildingName,
     required this.initialFloorCount,
     required this.initialImagePattern,
+    required this.initialTags,
   });
 
   @override
@@ -34,15 +39,28 @@ class _SettingsDialogState extends State<SettingsDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _floorCountController;
   late final TextEditingController _imagePatternController;
+  late Set<String> _selectedTags;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialBuildingName);
-    _floorCountController =
-        TextEditingController(text: widget.initialFloorCount.toString());
-    _imagePatternController =
-        TextEditingController(text: widget.initialImagePattern);
+    _floorCountController = TextEditingController(
+      text: widget.initialFloorCount.toString(),
+    );
+    _imagePatternController = TextEditingController(
+      text: widget.initialImagePattern,
+    );
+    final availableTagSet = kBuildingTagOptions.toSet();
+    final normalizedInitialTags = widget.initialTags
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toSet();
+    final intersected = normalizedInitialTags.intersection(availableTagSet);
+    _selectedTags = intersected.isEmpty ? {'その他'} : intersected;
+    if (_selectedTags.isEmpty) {
+      _selectedTags = {'その他'};
+    }
   }
 
   @override
@@ -55,13 +73,49 @@ class _SettingsDialogState extends State<SettingsDialog> {
 
   void _saveSettings() {
     if (_formKey.currentState!.validate()) {
+      if (_selectedTags.isEmpty) {
+        setState(() {
+          _selectedTags = {'その他'};
+        });
+      }
       final settings = BuildingSettings(
         buildingName: _nameController.text.trim(),
         floorCount: int.parse(_floorCountController.text),
         imageNamePattern: _imagePatternController.text.trim(),
+        tags: _sortedSelectedTags(),
       );
       Navigator.pop(context, settings);
     }
+  }
+
+  List<String> _sortedSelectedTags() {
+    final selectedSet = _selectedTags;
+    return [
+      for (final tag in kBuildingTagOptions)
+        if (selectedSet.contains(tag)) tag,
+    ];
+  }
+
+  void _toggleTag(String tag, bool selected) {
+    setState(() {
+      if (selected) {
+        if (tag == 'その他') {
+          _selectedTags = {'その他'};
+        } else {
+          _selectedTags
+            ..remove('その他')
+            ..add(tag);
+        }
+      } else {
+        if (_selectedTags.length == 1 && _selectedTags.contains(tag)) {
+          return;
+        }
+        _selectedTags.remove(tag);
+        if (_selectedTags.isEmpty) {
+          _selectedTags = {'その他'};
+        }
+      }
+    });
   }
 
   @override
@@ -122,6 +176,30 @@ class _SettingsDialogState extends State<SettingsDialog> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'カテゴリタグ',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (int i = 0; i < kBuildingTagOptions.length; i++)
+                    ChoiceChip(
+                        label: Text(kBuildingTagOptions[i]),
+                        selected:
+                            _selectedTags.contains(kBuildingTagOptions[i]),
+                        onSelected: (selected) =>
+                            _toggleTag(kBuildingTagOptions[i], selected),
+                      ),
+                ],
               ),
             ],
           ),

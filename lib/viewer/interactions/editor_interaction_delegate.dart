@@ -25,10 +25,7 @@ class EditorInteractionDelegate extends InteractionDelegate {
       final canConnect =
           start != null && tapped != null && canConnectNodes(start, tapped);
       if (canConnect) {
-        ref.read(activeBuildingProvider.notifier).addEdge(
-              start.id,
-              tapped.id,
-            );
+        ref.read(activeBuildingProvider.notifier).addEdge(start.id, tapped.id);
         return state.copyWith(
           isConnecting: false,
           connectingStart: null,
@@ -36,20 +33,14 @@ class EditorInteractionDelegate extends InteractionDelegate {
           tapPosition: null,
         );
       }
-      return state.copyWith(
-        tapPosition: position,
-        selectedElement: null,
-      );
+      return state.copyWith(tapPosition: position, selectedElement: null);
     }
 
     final selected = state.selectedElement;
     if (selected != null) {
       final distance = (position - selected.position).distance;
-      if (distance > 12.0) {
-        return state.copyWith(
-          selectedElement: null,
-          tapPosition: position,
-        );
+      if (distance > 0.05) {
+        return state.copyWith(selectedElement: null, tapPosition: position);
       }
     }
 
@@ -65,10 +56,9 @@ class EditorInteractionDelegate extends InteractionDelegate {
   }) {
     if (state.isConnecting && state.connectingStart != null) {
       if (canConnectNodes(state.connectingStart!, element)) {
-        ref.read(activeBuildingProvider.notifier).addEdge(
-              state.connectingStart!.id,
-              element.id,
-            );
+        ref
+            .read(activeBuildingProvider.notifier)
+            .addEdge(state.connectingStart!.id, element.id);
         return state.copyWith(
           isConnecting: false,
           connectingStart: null,
@@ -116,9 +106,7 @@ class EditorInteractionDelegate extends InteractionDelegate {
   }
 
   @override
-  InteractiveImageState toggleConnectionMode(
-    InteractiveImageState state,
-  ) {
+  InteractiveImageState toggleConnectionMode(InteractiveImageState state) {
     if (state.isConnecting) {
       return state.copyWith(
         isConnecting: false,
@@ -201,10 +189,7 @@ class EditorInteractionDelegate extends InteractionDelegate {
 
     final updated = selected.copyWith(position: clamped);
     ref.read(activeBuildingProvider.notifier).updateSData(updated);
-    return state.copyWith(
-      selectedElement: updated,
-      tapPosition: clamped,
-    );
+    return state.copyWith(selectedElement: updated, tapPosition: clamped);
   }
 
   @override
@@ -223,25 +208,17 @@ class EditorInteractionDelegate extends InteractionDelegate {
 
     ref.read(activeBuildingProvider.notifier).addSData(newElement);
 
-    return state.copyWith(
-      tapPosition: null,
-      selectedElement: null,
-    );
+    return state.copyWith(tapPosition: null, selectedElement: null);
   }
 
   @override
-  InteractiveImageState deleteSelectedElement(
-    InteractiveImageState state,
-  ) {
+  InteractiveImageState deleteSelectedElement(InteractiveImageState state) {
     final selected = state.selectedElement;
     if (selected == null) {
       return state;
     }
 
     ref.read(activeBuildingProvider.notifier).removeSData(selected);
-    return state.copyWith(
-      selectedElement: null,
-      tapPosition: null,
-    );
+    return state.copyWith(selectedElement: null, tapPosition: null);
   }
 }

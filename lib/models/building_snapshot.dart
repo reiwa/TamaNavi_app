@@ -4,6 +4,15 @@ import 'package:tamanavi_app/models/element_data_models.dart';
 
 part 'building_snapshot.freezed.dart';
 
+const List<String> kBuildingTagOptions = <String>[
+  '全学',
+  '理学',
+  '工学',
+  '教育学',
+  '経済学',
+  'その他',
+];
+
 @freezed
 class BuildingSnapshot with _$BuildingSnapshot {
   const factory BuildingSnapshot({
@@ -11,6 +20,7 @@ class BuildingSnapshot with _$BuildingSnapshot {
     required String name,
     required int floorCount,
     required String imagePattern,
+    required List<String> tags,
     required List<CachedSData> elements,
     required List<CachedPData> passages,
   }) = _BuildingSnapshot;
@@ -30,6 +40,21 @@ class BuildingSnapshot with _$BuildingSnapshot {
     final name = rawName.isEmpty ? buildingId : rawName;
     final floorCount = (parentJson['floor_count'] as num?)?.toInt() ?? 1;
     final imagePattern = parentJson['image_pattern']?.toString() ?? '';
+    final availableTagSet = kBuildingTagOptions.toSet();
+    final rawTags = (parentJson['tags'] as List?) ?? const [];
+    final sanitizedTagSet = <String>{};
+    for (final rawTag in rawTags) {
+      if (rawTag is! String) continue;
+      final trimmed = rawTag.trim();
+      if (trimmed.isEmpty) continue;
+      if (availableTagSet.contains(trimmed)) {
+        sanitizedTagSet.add(trimmed);
+      }
+    }
+
+    final normalizedTags = sanitizedTagSet.isEmpty
+        ? <String>['その他']
+        : sanitizedTagSet.toList()..sort();
 
     final elements = <CachedSData>[];
     for (final elementNode in elementsList) {
@@ -91,6 +116,7 @@ class BuildingSnapshot with _$BuildingSnapshot {
       name: name,
       floorCount: floorCount,
       imagePattern: imagePattern,
+      tags: normalizedTags,
       elements: elements,
       passages: passages,
     );
@@ -115,6 +141,18 @@ class BuildingSnapshot with _$BuildingSnapshot {
       "building_name": name,
       "floor_count": floorCount,
       "image_pattern": imagePattern,
+      "tags": () {
+        final availableTagSet = kBuildingTagOptions.toSet();
+        final filtered = <String>[
+          for (final tag in tags)
+            if (availableTagSet.contains(tag)) tag,
+        ];
+        if (filtered.isEmpty) {
+          filtered.add('その他');
+        }
+        filtered.sort();
+        return filtered;
+      }(),
       "edges_adjacency_list": edgesMap,
     };
   }

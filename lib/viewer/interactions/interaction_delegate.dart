@@ -33,9 +33,7 @@ abstract class InteractionDelegate {
     return state.copyWith(isDragging: false);
   }
 
-  InteractiveImageState toggleConnectionMode(
-    InteractiveImageState state,
-  ) {
+  InteractiveImageState toggleConnectionMode(InteractiveImageState state) {
     return state;
   }
 
@@ -68,9 +66,7 @@ abstract class InteractionDelegate {
     return state;
   }
 
-  InteractiveImageState deleteSelectedElement(
-    InteractiveImageState state,
-  ) {
+  InteractiveImageState deleteSelectedElement(InteractiveImageState state) {
     return state;
   }
 
@@ -78,6 +74,7 @@ abstract class InteractionDelegate {
     required InteractiveImageState state,
     required BuildingRoomInfo info,
     required bool switchToDetail,
+    bool autoNavigate = true,
   }) {
     return state;
   }
@@ -97,7 +94,7 @@ abstract class InteractionDelegate {
   }) async {
     return false;
   }
-  
+
   void dispose() {}
 }
 

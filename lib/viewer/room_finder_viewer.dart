@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
@@ -34,6 +35,8 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
 
   bool get showTapDot => widget.mode == CustomViewMode.editor;
 
+  bool get showSelectedPin => widget.mode == CustomViewMode.finder;
+
   bool canSwipeFloorsFor(InteractiveImageState s) {
     final transformationController = ref
         .read(interactiveImageProvider.notifier)
@@ -52,8 +55,6 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
     return canSwipeFloorsFor(s);
   }
 
-  PlaceType currentType = PlaceType.room;
-
   final double minScale = 0.8;
   final double maxScale = 8.0;
 
@@ -64,9 +65,7 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
   }
 
   void _handlePageChanged(int pageIndex) {
-    ref
-        .read(interactiveImageProvider.notifier)
-    .handlePageChanged(pageIndex);
+    ref.read(interactiveImageProvider.notifier).handlePageChanged(pageIndex);
   }
 
   void _ensureActiveBuildingSynced() =>

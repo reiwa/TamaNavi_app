@@ -21,6 +21,7 @@ mixin _$BuildingSnapshot {
   String get name => throw _privateConstructorUsedError;
   int get floorCount => throw _privateConstructorUsedError;
   String get imagePattern => throw _privateConstructorUsedError;
+  List<String> get tags => throw _privateConstructorUsedError;
   List<CachedSData> get elements => throw _privateConstructorUsedError;
   List<CachedPData> get passages => throw _privateConstructorUsedError;
 
@@ -43,6 +44,7 @@ abstract class $BuildingSnapshotCopyWith<$Res> {
     String name,
     int floorCount,
     String imagePattern,
+    List<String> tags,
     List<CachedSData> elements,
     List<CachedPData> passages,
   });
@@ -67,6 +69,7 @@ class _$BuildingSnapshotCopyWithImpl<$Res, $Val extends BuildingSnapshot>
     Object? name = null,
     Object? floorCount = null,
     Object? imagePattern = null,
+    Object? tags = null,
     Object? elements = null,
     Object? passages = null,
   }) {
@@ -88,6 +91,10 @@ class _$BuildingSnapshotCopyWithImpl<$Res, $Val extends BuildingSnapshot>
                 ? _value.imagePattern
                 : imagePattern // ignore: cast_nullable_to_non_nullable
                       as String,
+      tags: null == tags
+        ? _value.tags
+        : tags // ignore: cast_nullable_to_non_nullable
+            as List<String>,
             elements: null == elements
                 ? _value.elements
                 : elements // ignore: cast_nullable_to_non_nullable
@@ -116,6 +123,7 @@ abstract class _$$BuildingSnapshotImplCopyWith<$Res>
     String name,
     int floorCount,
     String imagePattern,
+    List<String> tags,
     List<CachedSData> elements,
     List<CachedPData> passages,
   });
@@ -139,6 +147,7 @@ class __$$BuildingSnapshotImplCopyWithImpl<$Res>
     Object? name = null,
     Object? floorCount = null,
     Object? imagePattern = null,
+    Object? tags = null,
     Object? elements = null,
     Object? passages = null,
   }) {
@@ -160,6 +169,10 @@ class __$$BuildingSnapshotImplCopyWithImpl<$Res>
             ? _value.imagePattern
             : imagePattern // ignore: cast_nullable_to_non_nullable
                   as String,
+    tags: null == tags
+      ? _value._tags
+      : tags // ignore: cast_nullable_to_non_nullable
+          as List<String>,
         elements: null == elements
             ? _value._elements
             : elements // ignore: cast_nullable_to_non_nullable
@@ -181,9 +194,11 @@ class _$BuildingSnapshotImpl extends _BuildingSnapshot {
     required this.name,
     required this.floorCount,
     required this.imagePattern,
+    required final List<String> tags,
     required final List<CachedSData> elements,
     required final List<CachedPData> passages,
-  }) : _elements = elements,
+  }) : _tags = tags,
+       _elements = elements,
        _passages = passages,
        super._();
 
@@ -195,6 +210,13 @@ class _$BuildingSnapshotImpl extends _BuildingSnapshot {
   final int floorCount;
   @override
   final String imagePattern;
+  final List<String> _tags;
+  @override
+  List<String> get tags {
+    if (_tags is EqualUnmodifiableListView) return _tags;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_tags);
+  }
   final List<CachedSData> _elements;
   @override
   List<CachedSData> get elements {
@@ -213,7 +235,7 @@ class _$BuildingSnapshotImpl extends _BuildingSnapshot {
 
   @override
   String toString() {
-    return 'BuildingSnapshot(id: $id, name: $name, floorCount: $floorCount, imagePattern: $imagePattern, elements: $elements, passages: $passages)';
+    return 'BuildingSnapshot(id: $id, name: $name, floorCount: $floorCount, imagePattern: $imagePattern, tags: $tags, elements: $elements, passages: $passages)';
   }
 
   @override
@@ -227,6 +249,7 @@ class _$BuildingSnapshotImpl extends _BuildingSnapshot {
                 other.floorCount == floorCount) &&
             (identical(other.imagePattern, imagePattern) ||
                 other.imagePattern == imagePattern) &&
+            const DeepCollectionEquality().equals(other._tags, _tags) &&
             const DeepCollectionEquality().equals(other._elements, _elements) &&
             const DeepCollectionEquality().equals(other._passages, _passages));
   }
@@ -238,6 +261,7 @@ class _$BuildingSnapshotImpl extends _BuildingSnapshot {
     name,
     floorCount,
     imagePattern,
+    const DeepCollectionEquality().hash(_tags),
     const DeepCollectionEquality().hash(_elements),
     const DeepCollectionEquality().hash(_passages),
   );
@@ -260,6 +284,7 @@ abstract class _BuildingSnapshot extends BuildingSnapshot {
     required final String name,
     required final int floorCount,
     required final String imagePattern,
+    required final List<String> tags,
     required final List<CachedSData> elements,
     required final List<CachedPData> passages,
   }) = _$BuildingSnapshotImpl;
@@ -273,6 +298,8 @@ abstract class _BuildingSnapshot extends BuildingSnapshot {
   int get floorCount;
   @override
   String get imagePattern;
+  @override
+  List<String> get tags;
   @override
   List<CachedSData> get elements;
   @override

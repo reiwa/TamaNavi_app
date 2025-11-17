@@ -4,7 +4,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 
 bool get isDesktopOrElse =>
-  kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+    kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
 abstract class EditorControllerHost {
   TextEditingController get nameController;

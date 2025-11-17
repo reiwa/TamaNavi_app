@@ -70,14 +70,11 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/fonts/rounded-x-mgenplus-2c-black.ttf
     - assets/images/ball.svg
     - assets/images/玉.svg
     - assets/images/ナ.svg
     - assets/images/ビ.svg
-    - assets/images/zenkou_1f.png
-    - assets/images/zenkou_2f.png
-    - assets/images/zenkou_3f.png
-    - assets/images/zenkou_4f.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

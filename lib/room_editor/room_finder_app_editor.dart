@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/room_editor/snapshot_screen.dart';
 import 'package:tamanavi_app/utility/platform_utils.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'package:tamanavi_app/viewer/interactive_image_state.dart';
@@ -261,6 +262,7 @@ class _EditorViewState extends ConsumerState<EditorView>
           initialBuildingName: active.name,
           initialFloorCount: active.floorCount,
           initialImagePattern: active.imagePattern,
+          initialTags: active.tags,
         );
       },
     );
@@ -272,6 +274,7 @@ class _EditorViewState extends ConsumerState<EditorView>
             name: newSettings.buildingName,
             floors: newSettings.floorCount,
             pattern: newSettings.imageNamePattern,
+            tags: newSettings.tags,
           );
 
       if (imageState.currentFloor > newSettings.floorCount) {
@@ -418,20 +421,9 @@ class _EditorViewState extends ConsumerState<EditorView>
         const SizedBox(height: 4),
         Container(height: 2, color: Colors.grey[300]),
         const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: _openSettingsDialog,
-            ),
-            IconButton(
-              icon: const Icon(Icons.cloud_upload),
-              tooltip: 'アップロード',
-              onPressed: () => _handleUploadPressed(),
-            ),
-          ],
+        SnapshotScreen(
+          onSettingsPressed: _openSettingsDialog,
+          onUploadPressed: _handleUploadPressed,
         ),
       ],
     );

@@ -131,20 +131,23 @@ class FinderDetailContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Container(height: 2, color: Colors.grey.shade300),
-                const SizedBox(height: 8),
-                selectedRoomInfo == null
-                    ? const SizedBox.shrink()
-                    : ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          fixedSize: Size(double.infinity, 36),
-                          backgroundColor: Colors.green,
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 36,
+                  child: selectedRoomInfo == null
+                      ? const SizedBox.shrink()
+                      : ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            fixedSize: Size(double.infinity, 24),
+                            backgroundColor: Colors.green,
+                          ),
+                          onPressed: onStartNavigation,
+                          child: const Text(
+                            'ルートを検索する!',
+                            style: TextStyle(fontSize: 14, color: Colors.white),
+                          ),
                         ),
-                        onPressed: onStartNavigation,
-                        child: const Text(
-                          'ルートを検索する!',
-                          style: TextStyle(fontSize: 14, color: Colors.white),
-                        ),
-                      ),
+                ),
               ],
             ),
           ),

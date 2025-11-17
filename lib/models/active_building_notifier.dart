@@ -20,7 +20,6 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
   BuildingSnapshot build() {
     final repoValue = ref.watch(buildingRepositoryProvider).asData?.value ?? {};
 
-
     BuildingSnapshot? initial;
     for (final entry in repoValue.entries) {
       if (entry.key == kDraftBuildingId) continue;
@@ -36,6 +35,7 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
           name: '新しい建物',
           floorCount: 1,
           imagePattern: '',
+          tags: const ['その他'],
           elements: <CachedSData>[],
           passages: [CachedPData(edges: {})],
         );
@@ -48,6 +48,7 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
       name: '新しい建物',
       floorCount: 1,
       imagePattern: '',
+      tags: const ['その他'],
       elements: <CachedSData>[],
       passages: [CachedPData(edges: {})],
     );
@@ -65,6 +66,7 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
       name: src.name,
       floorCount: src.floorCount,
       imagePattern: src.imagePattern,
+      tags: List<String>.from(src.tags),
       elements: [
         for (final e in src.elements)
           CachedSData(
@@ -79,11 +81,17 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
     );
   }
 
-  void updateBuildingSettings({String? name, int? floors, String? pattern}) {
+  void updateBuildingSettings({
+    String? name,
+    int? floors,
+    String? pattern,
+    List<String>? tags,
+  }) {
     state = state.copyWith(
       name: name ?? state.name,
       floorCount: floors ?? state.floorCount,
       imagePattern: pattern ?? state.imagePattern,
+      tags: tags ?? state.tags,
     );
   }
 
@@ -257,6 +265,7 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
       name: sourceSnapshot.name,
       floorCount: sourceSnapshot.floorCount,
       imagePattern: sourceSnapshot.imagePattern,
+      tags: List<String>.from(sourceSnapshot.tags),
       elements: [for (final e in sourceSnapshot.elements) e],
       passages:
           [

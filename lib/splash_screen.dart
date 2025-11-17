@@ -10,16 +10,16 @@ Future<void> preloadSvgs(List<String> assetPaths) async {
     final loader = SvgAssetLoader(path);
 
     futures.add(
-          svg.cache.putIfAbsent(loader.cacheKey(null), () async {
-            try {
-              final ByteData data = await loader.loadBytes(null);
-              return data;
-            } catch (e) {
-              debugPrint('Failed to preload SVG $path: $e');
-              return ByteData(0);
-            }
-          }),
-        );
+      svg.cache.putIfAbsent(loader.cacheKey(null), () async {
+        try {
+          final ByteData data = await loader.loadBytes(null);
+          return data;
+        } catch (e) {
+          debugPrint('Failed to preload SVG $path: $e');
+          return ByteData(0);
+        }
+      }),
+    );
   }
   await Future.wait(futures);
 }

@@ -11,9 +11,9 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
   InteractiveImageNotifier({
     required this.ref,
     required InteractionDelegate delegate,
-  })  : _delegate = delegate,
-        transformationController = TransformationController(),
-        super(const InteractiveImageState());
+  }) : _delegate = delegate,
+       transformationController = TransformationController(),
+       super(const InteractiveImageState());
 
   final Ref ref;
   final InteractionDelegate _delegate;
@@ -79,8 +79,8 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
     final nextTapPosition = suppressClear
         ? state.tapPosition
         : (prevSelected != null && prevSelected.floor == newFloor
-            ? prevSelected.position
-            : null);
+              ? prevSelected.position
+              : null);
 
     state = state.copyWith(
       currentFloor: newFloor,
@@ -191,15 +191,8 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
     state = _delegate.toggleConnectionMode(state);
   }
 
-  void addElement({
-    required String name,
-    required Offset position,
-  }) {
-    state = _delegate.addElement(
-      state: state,
-      name: name,
-      position: position,
-    );
+  void addElement({required String name, required Offset position}) {
+    state = _delegate.addElement(state: state, name: name, position: position);
   }
 
   void deleteSelectedElement() {
@@ -210,11 +203,16 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
     state = _delegate.connectToNode(state, endNode);
   }
 
-  void activateRoom(BuildingRoomInfo info, {bool switchToDetail = false}) {
+  void activateRoom(
+    BuildingRoomInfo info, {
+    bool switchToDetail = false,
+    bool autoNavigate = true,
+  }) {
     state = _delegate.activateRoom(
       state: state,
       info: info,
       switchToDetail: switchToDetail,
+      autoNavigate: autoNavigate,
     );
   }
 
@@ -252,7 +250,9 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
 }
 
 final interactiveImageProvider =
-    StateNotifierProvider<InteractiveImageNotifier, InteractiveImageState>((ref) {
-  final delegate = ref.watch(interactionDelegateProvider);
-  return InteractiveImageNotifier(ref: ref, delegate: delegate);
-});
+    StateNotifierProvider<InteractiveImageNotifier, InteractiveImageState>((
+      ref,
+    ) {
+      final delegate = ref.watch(interactionDelegateProvider);
+      return InteractiveImageNotifier(ref: ref, delegate: delegate);
+    });

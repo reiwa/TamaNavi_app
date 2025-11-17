@@ -28,13 +28,22 @@ Future<CachedSData?> showEntranceSelector({
                 top: false,
                 child: Container(
                   width: double.infinity,
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                     boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, -4)),
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 12,
+                        offset: Offset(0, -4),
+                      ),
                     ],
                   ),
                   child: Column(
@@ -42,7 +51,10 @@ Future<CachedSData?> showEntranceSelector({
                     children: [
                       const Text(
                         '入口を選択',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(
@@ -53,8 +65,9 @@ Future<CachedSData?> showEntranceSelector({
                           itemCount: entrances.length,
                           itemBuilder: (context, index) {
                             final entrance = entrances[index];
-                            final title =
-                                entrance.name.isEmpty ? entrance.id : entrance.name;
+                            final title = entrance.name.isEmpty
+                                ? entrance.id
+                                : entrance.name;
                             final isSelected = selectedId == entrance.id;
                             return ListTile(
                               dense: true,
@@ -66,7 +79,10 @@ Future<CachedSData?> showEntranceSelector({
                                     ? Theme.of(context).colorScheme.primary
                                     : null,
                               ),
-                              title: Text(title, style: const TextStyle(fontSize: 16)),
+                              title: Text(
+                                title,
+                                style: const TextStyle(fontSize: 16),
+                              ),
                               onTap: () {
                                 setSheetState(() => selectedId = entrance.id);
                                 onFocus(entrance);
@@ -80,8 +96,12 @@ Future<CachedSData?> showEntranceSelector({
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => Navigator.of(dialogContext).pop(null),
-                              child: const Text('キャンセル', style: TextStyle(fontSize: 14)),
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(null),
+                              child: const Text(
+                                'キャンセル',
+                                style: TextStyle(fontSize: 14),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -99,7 +119,10 @@ Future<CachedSData?> showEntranceSelector({
                               },
                               child: const Text(
                                 '確定',
-                                style: TextStyle(fontSize: 14, color: Colors.white),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
@@ -116,9 +139,10 @@ Future<CachedSData?> showEntranceSelector({
     },
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       return SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-        ),
+        position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+            .animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            ),
         child: child,
       );
     },

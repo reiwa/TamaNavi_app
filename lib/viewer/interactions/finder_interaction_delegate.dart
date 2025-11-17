@@ -19,10 +19,7 @@ class FinderInteractionDelegate extends InteractionDelegate {
     if (route.isNotEmpty) {
       return state;
     }
-    return state.copyWith(
-      tapPosition: position,
-      selectedElement: null,
-    );
+    return state.copyWith(tapPosition: position, selectedElement: null);
   }
 
   @override
@@ -43,13 +40,17 @@ class FinderInteractionDelegate extends InteractionDelegate {
     required InteractiveImageState state,
     required BuildingRoomInfo info,
     required bool switchToDetail,
+    bool autoNavigate = true,
   }) {
     final wasSearchMode = state.isSearchMode;
 
-    ref.read(activeBuildingProvider.notifier).setActiveBuilding(info.buildingId);
+    ref
+        .read(activeBuildingProvider.notifier)
+        .setActiveBuilding(info.buildingId);
     ref.read(activeRouteProvider.notifier).clearActiveRouteNodes();
 
-    final needsNavigationOnBuild = switchToDetail && wasSearchMode;
+    final needsNavigationOnBuild =
+        switchToDetail && wasSearchMode && autoNavigate;
 
     return state.copyWith(
       isSearchMode: switchToDetail ? false : state.isSearchMode,

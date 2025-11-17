@@ -51,10 +51,7 @@ class EditorCoordinateInputs extends StatelessWidget {
           flex: 3,
           child: TextField(
             controller: nameController,
-            decoration: const InputDecoration(
-              labelText: '名前',
-              isDense: true,
-            ),
+            decoration: const InputDecoration(labelText: '名前', isDense: true),
             style: const TextStyle(fontSize: 14),
           ),
         ),
@@ -63,10 +60,7 @@ class EditorCoordinateInputs extends StatelessWidget {
           flex: 2,
           child: TextField(
             controller: xController,
-            decoration: const InputDecoration(
-              labelText: 'X',
-              isDense: true,
-            ),
+            decoration: const InputDecoration(labelText: 'X', isDense: true),
             keyboardType: TextInputType.number,
             style: const TextStyle(fontSize: 14),
           ),
@@ -76,10 +70,7 @@ class EditorCoordinateInputs extends StatelessWidget {
           flex: 2,
           child: TextField(
             controller: yController,
-            decoration: const InputDecoration(
-              labelText: 'Y',
-              isDense: true,
-            ),
+            decoration: const InputDecoration(labelText: 'Y', isDense: true),
             keyboardType: TextInputType.number,
             style: const TextStyle(fontSize: 14),
           ),
@@ -90,10 +81,7 @@ class EditorCoordinateInputs extends StatelessWidget {
 }
 
 class EditorIdleScreen extends StatelessWidget {
-  const EditorIdleScreen({
-    super.key,
-    required this.onRebuildPressed,
-  });
+  const EditorIdleScreen({super.key, required this.onRebuildPressed});
 
   final VoidCallback onRebuildPressed;
 

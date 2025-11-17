@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
@@ -31,80 +30,198 @@ final buildingRepositoryProvider =
 class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
   @override
   Future<Map<String, BuildingSnapshot>> build() async {
-    return _fetchDataFromFirestore();
+    return <String, BuildingSnapshot>{};
   }
 
-  Future<Map<String, BuildingSnapshot>> _fetchDataFromFirestore() async {
-    state = const AsyncLoading();
+  Map<String, BuildingSnapshot> get _currentSnapshots =>
+      state.asData?.value ?? const <String, BuildingSnapshot>{};
+
+  Future<List<BuildingSnapshot>> fetchBuildingsByTag(String tag) async {
+    final current = Map<String, BuildingSnapshot>.from(_currentSnapshots);
     try {
-      final querySnapshot = await _firestore.collection('buildings').get();
+      final query = await _firestore
+          .collection('buildings')
+          .where('tags', arrayContains: tag)
+          .get();
 
-      final result = <String, BuildingSnapshot>{};
-      int fallbackIndex = 0;
+      if (query.docs.isEmpty) {
+        return const [];
+      }
 
-      for (final doc in querySnapshot.docs) {
-        final Map<String, dynamic> node = doc.data();
-        fallbackIndex += 1;
+      int fallbackIndex = current.length;
+      final pending = <({
+        Map<String, dynamic> parentJson,
+        DocumentReference<Map<String, dynamic>> docRef,
+        int fallbackIndex,
+      })>[];
+      final orderedIds = <String>[];
 
-        node.putIfAbsent('id', () => doc.id);
+      for (final doc in query.docs) {
+        final parentJson = Map<String, dynamic>.from(doc.data())
+          ..putIfAbsent('id', () => doc.id);
+        final buildingId = parentJson['id']?.toString() ?? doc.id;
+        orderedIds.add(buildingId);
+        if (current.containsKey(buildingId)) {
+          continue;
+        }
+        pending.add((
+          parentJson: parentJson,
+          docRef: doc.reference,
+          fallbackIndex: ++fallbackIndex,
+        ));
+      }
 
-        final elementsQuery = await doc.reference.collection('elements').get();
-
-        final List<Map<String, dynamic>> elementsList = elementsQuery.docs.map((
-          elDoc,
-        ) {
-          final data = elDoc.data();
-          data.putIfAbsent('id', () => elDoc.id);
-          return data;
-        }).toList();
-
-        final snapshot = BuildingSnapshot.fromFirestore(
-          parentJson: node,
-          elementsList: elementsList,
-          fallbackIndex: fallbackIndex,
+      if (pending.isNotEmpty) {
+        final fetched = await Future.wait(
+          pending.map(
+            (entry) => _snapshotFromParent(
+              parentJson: entry.parentJson,
+              docRef: entry.docRef,
+              fallbackIndex: entry.fallbackIndex,
+            ),
+          ),
         );
-        result[snapshot.id] = snapshot;
+        for (final snapshot in fetched) {
+          current[snapshot.id] = snapshot;
+        }
+        state = AsyncData(current);
+      }
+
+      final result = <BuildingSnapshot>[];
+      for (final id in orderedIds) {
+        final snapshot = current[id];
+        if (snapshot != null) {
+          result.add(snapshot);
+        }
       }
       return result;
-    } catch (e) {
+    } catch (e, s) {
+      state = AsyncError(e, s);
       rethrow;
     }
   }
 
-  Future<void> refresh() async {
-    state = const AsyncLoading();
+  Future<BuildingSnapshot?> ensureBuildingLoaded(String buildingId) async {
+    final current = Map<String, BuildingSnapshot>.from(_currentSnapshots);
+    final existing = current[buildingId];
+    if (existing != null) {
+      return existing;
+    }
+
     try {
-      final result = await _fetchDataFromFirestore();
-      state = AsyncData(result);
+      final doc =
+          await _firestore.collection('buildings').doc(buildingId).get();
+      final data = doc.data();
+      if (!doc.exists || data == null) {
+        return null;
+      }
+
+      final parentJson = Map<String, dynamic>.from(data)
+        ..putIfAbsent('id', () => doc.id);
+
+      final snapshot = await _snapshotFromParent(
+        parentJson: parentJson,
+        docRef: doc.reference,
+        fallbackIndex: current.length + 1,
+      );
+      current[snapshot.id] = snapshot;
+      state = AsyncData(current);
+      return snapshot;
     } catch (e, s) {
       state = AsyncError(e, s);
+      rethrow;
     }
   }
 
+  Future<BuildingSnapshot?> fetchBuildingContainingRoom(String roomId) async {
+    final current = Map<String, BuildingSnapshot>.from(_currentSnapshots);
+    for (final snapshot in current.values) {
+      final hasRoom =
+          snapshot.elements.any((element) => element.id == roomId);
+      if (hasRoom) {
+        return snapshot;
+      }
+    }
+
+    try {
+      final query = await _firestore
+          .collectionGroup('elements')
+          .where('id', isEqualTo: roomId)
+          .limit(1)
+          .get();
+      if (query.docs.isEmpty) {
+        return null;
+      }
+
+      final buildingRef = query.docs.first.reference.parent.parent;
+      if (buildingRef == null) {
+        return null;
+      }
+
+      final doc = await buildingRef.get();
+      final data = doc.data();
+      if (!doc.exists || data == null) {
+        return null;
+      }
+
+      final parentJson = Map<String, dynamic>.from(data)
+        ..putIfAbsent('id', () => doc.id);
+
+      final snapshot = await _snapshotFromParent(
+        parentJson: parentJson,
+        docRef: doc.reference,
+        fallbackIndex: current.length + 1,
+      );
+      current[snapshot.id] = snapshot;
+      state = AsyncData(current);
+      return snapshot;
+    } catch (e, s) {
+      state = AsyncError(e, s);
+      rethrow;
+    }
+  }
+
+  Future<BuildingSnapshot> _snapshotFromParent({
+    required Map<String, dynamic> parentJson,
+    required DocumentReference<Map<String, dynamic>> docRef,
+    required int fallbackIndex,
+  }) async {
+    final elementsQuery = await docRef.collection('elements').get();
+    final elementsList = elementsQuery.docs.map((elDoc) {
+      final data = elDoc.data();
+      data.putIfAbsent('id', () => elDoc.id);
+      return data;
+    }).toList();
+
+    return BuildingSnapshot.fromFirestore(
+      parentJson: Map<String, dynamic>.from(parentJson),
+      elementsList: elementsList,
+      fallbackIndex: fallbackIndex,
+    );
+  }
+
   void upsert(BuildingSnapshot snapshot) {
-    final current = state.asData?.value ?? <String, BuildingSnapshot>{};
-    state = AsyncData({...current, snapshot.id: snapshot});
+    final current = Map<String, BuildingSnapshot>.from(_currentSnapshots);
+    current[snapshot.id] = snapshot;
+    state = AsyncData(current);
   }
 
   void remove(String id) {
-    final current = state.asData?.value ?? <String, BuildingSnapshot>{};
+    final current = Map<String, BuildingSnapshot>.from(_currentSnapshots);
     if (!current.containsKey(id)) return;
-    final next = Map<String, BuildingSnapshot>.from(current)..remove(id);
-    state = AsyncData(next);
+    current.remove(id);
+    state = AsyncData(current);
   }
 
   BuildingSnapshot? getById(String id) {
-    final current = state.asData?.value;
-    if (current == null) return null;
-    return current[id];
+    return _currentSnapshots[id];
   }
 
   bool get hasDraft =>
-      (state.asData?.value ?? const {}).containsKey(kDraftBuildingId);
+      _currentSnapshots.containsKey(kDraftBuildingId);
 
   String? get firstNonDraftBuildingId {
-    final current = state.asData?.value ?? const {};
-    for (final entry in current.entries) {
+    for (final entry in _currentSnapshots.entries) {
       if (entry.key == kDraftBuildingId) continue;
       return entry.key;
     }
@@ -112,7 +229,7 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
   }
 
   List<BuildingRoomInfo> getAllRoomInfos() {
-    final current = state.asData?.value ?? const {};
+    final current = _currentSnapshots;
     final result = <BuildingRoomInfo>[];
     for (final snapshot in current.values) {
       if (snapshot.id == kDraftBuildingId) continue;
@@ -202,22 +319,40 @@ typedef FloorImageKey = ({String imagePattern, int floor});
 
 const String _floorImageFolder = 'gs://saidai-roomfinder.firebasestorage.app';
 
-String _composeFloorImagePath(FloorImageKey key) {
-  return '$_floorImageFolder/${key.imagePattern}_${key.floor}f.png';
+FloorImageKey _normalizeFloorImageKey(FloorImageKey key) =>
+    (imagePattern: key.imagePattern.trim(), floor: key.floor);
+
+class FloorImagePatternMissingException implements Exception {
+  const FloorImagePatternMissingException(this.key);
+
+  final FloorImageKey key;
+
+  String get message => '${key.floor}階の画像パスを適切に設定してから再度試してください。';
+
+  @override
+  String toString() => message;
 }
 
-final floorImageUrlProvider =
-    FutureProvider.family<String, FloorImageKey>((ref, key) async {
+final floorImageUrlProvider = FutureProvider.family<String, FloorImageKey>((
+  ref,
+  key,
+) async {
+  final normalizedKey = _normalizeFloorImageKey(key);
+  if (normalizedKey.imagePattern.isEmpty) {
+    throw FloorImagePatternMissingException(normalizedKey);
+  }
 
-  final storageRef = FirebaseStorage.instance.ref(_composeFloorImagePath(key));
+  final storageRef = FirebaseStorage.instance.refFromURL(
+    '$_floorImageFolder/${key.imagePattern}_${key.floor}f.svg',
+  );
 
   return storageRef.getDownloadURL();
 });
 
 final floorImagePrefetchNotifierProvider =
     NotifierProvider<FloorImagePrefetchNotifier, Set<FloorImageKey>>(
-  FloorImagePrefetchNotifier.new,
-);
+      FloorImagePrefetchNotifier.new,
+    );
 
 class FloorImagePrefetchNotifier extends Notifier<Set<FloorImageKey>> {
   FloorImagePrefetchNotifier();
@@ -228,20 +363,24 @@ class FloorImagePrefetchNotifier extends Notifier<Set<FloorImageKey>> {
   Set<FloorImageKey> build() => <FloorImageKey>{};
 
   Future<void> ensurePrefetched(BuildContext context, FloorImageKey key) async {
-    if (state.contains(key) || _inFlight.contains(key)) {
+    final normalizedKey = _normalizeFloorImageKey(key);
+    if (normalizedKey.imagePattern.isEmpty) {
+      return;
+    }
+    if (state.contains(normalizedKey) || _inFlight.contains(normalizedKey)) {
       return;
     }
 
-    _inFlight.add(key);
+    _inFlight.add(normalizedKey);
     try {
-      final url = await ref.read(floorImageUrlProvider(key).future);
+      final url = await ref.read(floorImageUrlProvider(normalizedKey).future);
       if (!context.mounted) return;
       await precacheImage(NetworkImage(url), context);
-      final nextState = Set<FloorImageKey>.from(state)..add(key);
+      final nextState = Set<FloorImageKey>.from(state)..add(normalizedKey);
       state = nextState;
     } catch (_) {
     } finally {
-      _inFlight.remove(key);
+      _inFlight.remove(normalizedKey);
     }
   }
 }

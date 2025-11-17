@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:tamanavi_app/models/room_finder_models.dart';
 import 'package:tamanavi_app/room_editor/room_finder_app_editor.dart';
 import 'package:tamanavi_app/room_finder/room_finder_app.dart';
 import 'package:tamanavi_app/viewer/interactions/editor_interaction_delegate.dart';
@@ -19,7 +19,9 @@ void main() async {
 }
 
 class FinderWithSplash extends ConsumerStatefulWidget {
-  const FinderWithSplash({super.key});
+  const FinderWithSplash({super.key, this.initialIntent});
+
+  final FinderLaunchIntent? initialIntent;
 
   @override
   ConsumerState<FinderWithSplash> createState() => _FinderWithSplashState();
@@ -39,29 +41,11 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
   }
 
   void _startDataLoading() {
-    final repoProvider = buildingRepositoryProvider;
-    if (!ref.read(repoProvider).isLoading) {
-      if (mounted) {
-        setState(() {
-          _isDataLoaded = true;
-        });
-        _checkAndTransition();
-      }
-    }
-
-    ref.listenManual<bool>(repoProvider.select((repo) => repo.isLoading), (
-      previous,
-      next,
-    ) {
-      if (previous == true && next == false) {
-        if (mounted) {
-          setState(() {
-            _isDataLoaded = true;
-          });
-          _checkAndTransition();
-        }
-      }
+    if (!mounted) return;
+    setState(() {
+      _isDataLoaded = true;
     });
+    _checkAndTransition();
   }
 
   @override
@@ -94,7 +78,9 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
       children: [
         Offstage(
           offstage: _showSplash,
-          child: _isDataLoaded ? const FinderView() : const SizedBox.shrink(),
+          child: _isDataLoaded
+              ? FinderView(initialIntent: widget.initialIntent)
+              : const SizedBox.shrink(),
         ),
         AnimatedOpacity(
           opacity: _showSplash ? 1.0 : 0.0,
@@ -126,8 +112,29 @@ void startSvgLoading() async {
   ]);
 }
 
+void startFontLoading() async {
+  final loader = FontLoader('RoundedMgenPlus')
+    ..addFont(rootBundle.load('assets/fonts/rounded-x-mgenplus-2c-black.ttf'));
+  await loader.load();
+  const textStyle = TextStyle(fontFamily: 'RoundedMgenPlus');
+  TextPainter(
+    text: const TextSpan(text: ' 日本語 ', style: textStyle),
+    maxLines: 1,
+    textDirection: TextDirection.ltr,
+  );
+}
+
 class RoomFinder extends StatefulWidget {
-  const RoomFinder({super.key});
+  const RoomFinder({
+    super.key,
+    this.navigateTo,
+    this.navigateFrom,
+    this.isDarkMode,
+  });
+
+  final String? navigateTo;
+  final String? navigateFrom;
+  final bool? isDarkMode;
 
   @override
   State<RoomFinder> createState() => _RoomFinderState();
@@ -137,6 +144,36 @@ enum CustomViewType { editor, finder }
 
 class _RoomFinderState extends State<RoomFinder> {
   CustomViewType _mode = CustomViewType.finder;
+  FinderLaunchIntent? _initialIntent;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialIntent = FinderLaunchIntent.maybeFrom(
+      navigateTo: widget.navigateTo,
+      navigateFrom: widget.navigateFrom,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant RoomFinder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final hasToChanged = widget.navigateTo != oldWidget.navigateTo;
+    final hasFromChanged = widget.navigateFrom != oldWidget.navigateFrom;
+    if (hasToChanged || hasFromChanged) {
+      final nextIntent = FinderLaunchIntent.maybeFrom(
+        navigateTo: widget.navigateTo,
+        navigateFrom: widget.navigateFrom,
+      );
+      if (nextIntent != _initialIntent) {
+        setState(() {
+          _initialIntent = nextIntent;
+        });
+      } else {
+        _initialIntent = nextIntent;
+      }
+    }
+  }
 
   ProviderScope _buildScopedView() {
     final delegateOverride = interactionDelegateProvider.overrideWith(
@@ -147,7 +184,7 @@ class _RoomFinderState extends State<RoomFinder> {
 
     final view = _mode == CustomViewType.editor
         ? const EditorView()
-        : const FinderWithSplash();
+        : FinderWithSplash(initialIntent: _initialIntent);
 
     return ProviderScope(
       key: ValueKey(_mode),
@@ -166,40 +203,48 @@ class _RoomFinderState extends State<RoomFinder> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Stack(
-          children: [
-            LayoutBuilder(
-              builder: (context, constraints) => Container(
-                width: constraints.maxWidth,
-                height: constraints.maxHeight,
-                color: Colors.grey[50],
-                child: _buildScopedView(),
+    return MaterialApp(
+      theme: ThemeData(
+        fontFamily: 'RoundedMgenPlus',
+        textTheme: ThemeData.light().textTheme.apply(
+          fontFamily: 'RoundedMgenPlus',
+        ),
+      ),
+      home: Scaffold(
+        body: Center(
+          child: Stack(
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) => Container(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  color: Colors.grey[50],
+                  child: _buildScopedView(),
+                ),
               ),
-            ),
-            Positioned(
-              bottom: 0,
-              right: 80,
-              child: PopupMenuButton<CustomViewType>(
-                onSelected: (type) {
-                  setState(() {
-                    _mode = type;
-                  });
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: CustomViewType.editor,
-                    child: Text('Editor'),
-                  ),
-                  PopupMenuItem(
-                    value: CustomViewType.finder,
-                    child: Text('Finder'),
-                  ),
-                ],
+              Positioned(
+                bottom: 0,
+                right: 126,
+                child: PopupMenuButton<CustomViewType>(
+                  onSelected: (type) {
+                    setState(() {
+                      _mode = type;
+                    });
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: CustomViewType.editor,
+                      child: Text('Editor'),
+                    ),
+                    PopupMenuItem(
+                      value: CustomViewType.finder,
+                      child: Text('Finder'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -214,12 +259,13 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _isMessageVisible = false;
+  bool _isFinderVisible = false;
 
   @override
   void initState() {
     super.initState();
     startSvgLoading();
+    startFontLoading();
   }
 
   @override
@@ -228,7 +274,6 @@ class _MyAppState extends State<MyApp> {
       title: 'Hello Flutter',
       //showPerformanceOverlay: true,
       home: Scaffold(
-        appBar: AppBar(title: const Text('Hello Flutter')),
         body: Center(
           child: Stack(
             alignment: Alignment.center,
@@ -241,13 +286,13 @@ class _MyAppState extends State<MyApp> {
                     child: const Text('RoomFinder'),
                     onPressed: () {
                       setState(() {
-                        _isMessageVisible = true;
+                        _isFinderVisible = true;
                       });
                     },
                   ),
                 ],
               ),
-              _isMessageVisible ? const RoomFinder() : Container(),
+              _isFinderVisible ? const RoomFinder() : Container(),
             ],
           ),
         ),

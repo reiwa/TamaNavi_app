@@ -98,7 +98,10 @@ class PassagePainter extends CustomPainter {
   }
 
   void _paintRouteSegments(Canvas canvas) {
-    final double effectiveScale = controller.value.getMaxScaleOnAxis().clamp(1.0, 10.0);
+    final double effectiveScale = controller.value.getMaxScaleOnAxis().clamp(
+      1.0,
+      10.0,
+    );
     final Paint chevronPaint = Paint()
       ..color = Colors.redAccent
       ..strokeWidth = 3.6 / effectiveScale
@@ -183,11 +186,10 @@ class PassagePainter extends CustomPainter {
   }
 
   Path _dashPath(Offset start, Offset end, double dashWidth, double dashSpace) {
-    return Path()
-      ..addPath(
-        _generateDashedLine(start, end, dashWidth, dashSpace),
-        Offset.zero,
-      );
+    return Path()..addPath(
+      _generateDashedLine(start, end, dashWidth, dashSpace),
+      Offset.zero,
+    );
   }
 
   Path _generateDashedLine(
@@ -213,12 +215,16 @@ class PassagePainter extends CustomPainter {
 
   void _paintElevatorLinks(Canvas canvas) {
     const double baseLength = 60.0;
-    final double effectiveScale = controller.value.getMaxScaleOnAxis().clamp(1.0, 10.0);
+    final double effectiveScale = controller.value.getMaxScaleOnAxis().clamp(
+      1.0,
+      10.0,
+    );
     for (final link in elevatorLinks) {
       final Offset absoluteOrigin = _toAbsolute(link.origin);
       final double direction = link.isUpward ? -1.0 : 1.0;
       final double arrowLength = baseLength / effectiveScale;
-      final Offset endPoint = absoluteOrigin + Offset(0, arrowLength * direction);
+      final Offset endPoint =
+          absoluteOrigin + Offset(0, arrowLength * direction);
       final Color arrowColorBase = link.highlight
           ? Colors.orangeAccent
           : link.color;

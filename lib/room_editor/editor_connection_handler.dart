@@ -23,7 +23,8 @@ bool canConnectNodes(CachedSData start, CachedSData tapped) {
 
   final sameFloor = tapped.floor == start.floor;
   if (!sameFloor) {
-    return start.type == PlaceType.elevator && tapped.type == PlaceType.elevator;
+    return start.type == PlaceType.elevator &&
+        tapped.type == PlaceType.elevator;
   }
 
   final bool tappedIsConnectable = tapped.type.isGraphNode;
