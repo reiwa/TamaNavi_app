@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tamanavi_app/models/building_snapshot.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
@@ -147,7 +148,7 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
     return state.passages.first.edges.any((set) => set.contains(passageId));
   }
 
-  void rebuildRoomPassageEdges() {
+  void rebuildRoomPassageEdges(Map<int, Size> imageDimensions) {
     final passages = state.passages.isEmpty
         ? [CachedPData(edges: {})]
         : state.passages;
@@ -190,15 +191,20 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
         (a.compareTo(b) <= 0) ? '$a|$b' : '$b|$a';
 
     for (final entry in roomsByFloor.entries) {
-      final floorPassages = passagesByFloor[entry.key];
+      final floor = entry.key;
+      final floorPassages = passagesByFloor[floor];
       if (floorPassages == null || floorPassages.isEmpty) continue;
+
+      final size = imageDimensions[floor];
+      final width = size?.width ?? 1.0;
+      final height = size?.height ?? 1.0;
 
       for (final room in entry.value) {
         CachedSData? closest;
         double bestDist = double.infinity;
         for (final p in floorPassages) {
-          final dx = room.position.dx - p.position.dx;
-          final dy = room.position.dy - p.position.dy;
+          final dx = (room.position.dx - p.position.dx) * width;
+          final dy = (room.position.dy - p.position.dy) * height;
           final dist = dx * dx + dy * dy;
           if (dist < bestDist) {
             bestDist = dist;

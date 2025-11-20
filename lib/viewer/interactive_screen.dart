@@ -1,12 +1,10 @@
-import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
 import 'package:tamanavi_app/utility/platform_utils.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'package:tamanavi_app/viewer/interactive_image_state.dart';
@@ -28,6 +26,7 @@ class InteractiveLayer extends StatelessWidget {
     required this.elevatorLinks,
     required this.passageEdges,
     this.previewEdge,
+    required this.hasActiveRoute,
     required this.ref,
   });
 
@@ -41,6 +40,7 @@ class InteractiveLayer extends StatelessWidget {
   final List<ElevatorVerticalLink> elevatorLinks;
   final List<Edge> passageEdges;
   final Edge? previewEdge;
+  final bool hasActiveRoute;
   final WidgetRef ref;
 
   @override
@@ -85,6 +85,7 @@ class InteractiveLayer extends StatelessWidget {
               elevatorLinks: elevatorLinks,
               passageEdges: passageEdges,
               previewEdge: previewEdge,
+              hasActiveRoute: hasActiveRoute,
               ref: ref,
             ),
           ),
@@ -126,6 +127,7 @@ class _InteractiveContent extends ConsumerStatefulWidget {
     required this.elevatorLinks,
     required this.passageEdges,
     this.previewEdge,
+    required this.hasActiveRoute,
     required this.ref,
   });
 
@@ -139,6 +141,7 @@ class _InteractiveContent extends ConsumerStatefulWidget {
   final List<ElevatorVerticalLink> elevatorLinks;
   final List<Edge> passageEdges;
   final Edge? previewEdge;
+  final bool hasActiveRoute;
   final WidgetRef ref;
 
   @override
@@ -148,11 +151,6 @@ class _InteractiveContent extends ConsumerStatefulWidget {
 
 class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     with SingleTickerProviderStateMixin {
-  static const int _maxSvgBytes = 2 * 1024 * 1024;
-
-  Future<_SvgPayload>? _svgFuture;
-  int _svgLoadToken = 0;
-
   late AnimationController _iconController;
   late Animation<double> _iconAnimation;
   ProviderSubscription<InteractiveImageState>? _imageStateSubscription;
@@ -160,8 +158,6 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
   @override
   void initState() {
     super.initState();
-    _reloadSvg();
-
     _iconController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -189,41 +185,9 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
   @override
   void didUpdateWidget(_InteractiveContent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.imageUrl != widget.imageUrl) {
-      _reloadSvg();
-    }
-
     if (oldWidget.floor != widget.floor) {
       _subscribeToImageState();
-      final hasDimensions = ref
-              .read(interactiveImageProvider)
-              .imageDimensionsByFloor
-              .containsKey(widget.floor) &&
-          ref
-                  .read(interactiveImageProvider)
-                  .imageDimensionsByFloor[widget.floor] !=
-              null;
-      if (!hasDimensions) {
-        _reloadSvg();
-      }
     }
-  }
-
-  void _reloadSvg() {
-    final imageUrl = widget.imageUrl;
-    final loadId = ++_svgLoadToken;
-
-    final future = _fetchSvg(imageUrl);
-    _svgFuture = future;
-    setState(() {});
-
-    future.then((payload) {
-      if (!mounted || loadId != _svgLoadToken) return;
-      final notifier = ref.read(interactiveImageProvider.notifier);
-      notifier.setImageDimensions(widget.floor, payload.size);
-    }).catchError((_) {
-      // Loading errors are surfaced via FutureBuilder; nothing to do here.
-    });
   }
 
   void _subscribeToImageState() {
@@ -263,6 +227,14 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(svgPayloadProvider(widget.imageUrl), (previous, next) {
+      next.whenData((payload) {
+        ref
+            .read(interactiveImageProvider.notifier)
+            .setImageDimensions(widget.floor, payload.size);
+      });
+    });
+
     final imageDimensions = ref.watch(
       interactiveImageProvider.select(
         (s) => s.imageDimensionsByFloor[widget.floor],
@@ -291,18 +263,36 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     final transformationController = ref
         .read(interactiveImageProvider.notifier)
         .transformationController;
-    if (imageDimensions == null) {
-      return Container(
-        alignment: Alignment.center,
-        child: const CircularProgressIndicator(),
+
+    final svgAsync = ref.watch(svgPayloadProvider(widget.imageUrl));
+    final svgPayload = svgAsync.asData?.value;
+
+    final resolvedDimensions = imageDimensions ?? svgPayload?.size;
+    if (svgPayload != null && imageDimensions == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref
+            .read(interactiveImageProvider.notifier)
+            .setImageDimensions(widget.floor, svgPayload.size);
+      });
+    }
+
+    if (resolvedDimensions == null) {
+      return svgAsync.when(
+        data: (_) => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(
+          child: Text('${widget.floor}階の画像が読み込めません\n(${widget.imageUrl})'),
+        ),
       );
     }
-    Size displaySize = imageDimensions;
-    if (imageDimensions.width > widget.viewerSize.width) {
-      final scale = widget.viewerSize.width / imageDimensions.width;
+
+    Size displaySize = resolvedDimensions;
+    if (resolvedDimensions.width > widget.viewerSize.width) {
+      final scale = widget.viewerSize.width / resolvedDimensions.width;
       displaySize = Size(
         widget.viewerSize.width,
-        imageDimensions.height * scale,
+        resolvedDimensions.height * scale,
       );
     }
     if (displaySize.height > widget.viewerSize.height) {
@@ -315,39 +305,27 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          FutureBuilder<_SvgPayload>(
-            future: _svgFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return SizedBox(
-                  width: displaySize.width,
-                  height: displaySize.height,
-                  child: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              if (snapshot.hasError || snapshot.data == null) {
-                return SizedBox(
-                  width: displaySize.width,
-                  height: displaySize.height,
-                  child: Center(
-                    child: Text(
-                      '${widget.floor}階の画像が読み込めません\n(${widget.imageUrl})',
-                    ),
-                  ),
-                );
-              }
-
-              final payload = snapshot.data!;
-              return SvgPicture.memory(
-                payload.bytes,
-                width: displaySize.width,
-                height: displaySize.height,
-                fit: BoxFit.contain,
-              );
-            },
+          svgAsync.when(
+            data: (payload) => SvgPicture.memory(
+              payload.bytes,
+              width: displaySize.width,
+              height: displaySize.height,
+              fit: BoxFit.contain,
+            ),
+            loading: () => SizedBox(
+              width: displaySize.width,
+              height: displaySize.height,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+            error: (err, stack) => SizedBox(
+              width: displaySize.width,
+              height: displaySize.height,
+              child: Center(
+                child: Text(
+                  '${widget.floor}階の画像が読み込めません\n(${widget.imageUrl})',
+                ),
+              ),
+            ),
           ),
           _GestureLayer(
             self: widget.self,
@@ -368,6 +346,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
                   viewerSize: widget.viewerSize,
                   elevatorLinks: widget.elevatorLinks,
                   imageDimensions: displaySize,
+                  hideBaseEdges: widget.hasActiveRoute,
                 ),
               ),
             ),
@@ -439,89 +418,6 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       ),
     );
   }
-}
-
-class _SvgPayload {
-  const _SvgPayload({required this.bytes, required this.size});
-
-  final Uint8List bytes;
-  final Size size;
-}
-
-final Map<String, Future<_SvgPayload>> _svgPayloadCache = {};
-
-Future<_SvgPayload> _fetchSvg(String url) {
-  final cached = _svgPayloadCache[url];
-  if (cached != null) {
-    return cached;
-  }
-
-  final future = () async {
-    final storageRef = FirebaseStorage.instance.refFromURL(url);
-    final rawBytes =
-        await storageRef.getData(_InteractiveContentState._maxSvgBytes);
-    if (rawBytes == null || rawBytes.isEmpty) {
-      throw StateError('Empty SVG data for $url');
-    }
-    final size = _parseSvgSize(rawBytes);
-    return _SvgPayload(bytes: rawBytes, size: size);
-  }();
-
-  _svgPayloadCache[url] = future.catchError((error, stackTrace) {
-    _svgPayloadCache.remove(url);
-    throw error;
-  });
-
-  return future;
-}
-
-Size _parseSvgSize(Uint8List svgBytes) {
-  final svgString = utf8.decode(svgBytes);
-  final width = _parseSvgLength(_extractSvgAttribute(svgString, 'width'));
-  final height = _parseSvgLength(_extractSvgAttribute(svgString, 'height'));
-
-  if (width != null && height != null && width > 0 && height > 0) {
-    return Size(width, height);
-  }
-
-  final viewBox = _extractSvgAttribute(svgString, 'viewBox');
-  if (viewBox != null) {
-    final parts = viewBox
-        .split(RegExp(r'[\s,]+'))
-        .where((value) => value.isNotEmpty)
-        .toList(growable: false);
-    if (parts.length == 4) {
-      final vbWidth = double.tryParse(parts[2]);
-      final vbHeight = double.tryParse(parts[3]);
-      if (vbWidth != null && vbHeight != null && vbWidth > 0 && vbHeight > 0) {
-        return Size(vbWidth, vbHeight);
-      }
-    }
-  }
-
-  // Fallback to a square canvas when no explicit sizing is present.
-  return const Size.square(1024);
-}
-
-String? _extractSvgAttribute(String svgContent, String attribute) {
-  final regex =
-      RegExp('$attribute\\s*=\\s*"([^"]+)"', caseSensitive: false);
-  final match = regex.firstMatch(svgContent);
-  return match?.group(1)?.trim();
-}
-
-double? _parseSvgLength(String? rawValue) {
-  if (rawValue == null || rawValue.isEmpty) {
-    return null;
-  }
-
-  final trimmed = rawValue.trim();
-  final valueMatch = RegExp(r'(-?\d*\.?\d+)').firstMatch(trimmed);
-  if (valueMatch == null) {
-    return null;
-  }
-
-  return double.tryParse(valueMatch.group(1)!);
 }
 
 class _GestureLayer extends StatelessWidget {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
@@ -318,6 +320,7 @@ final graphEdgesProvider = Provider.family<List<Edge>, int>((ref, floor) {
 typedef FloorImageKey = ({String imagePattern, int floor});
 
 const String _floorImageFolder = 'gs://saidai-roomfinder.firebasestorage.app';
+const int _maxSvgFetchBytes = 50 * 1024 * 1024;
 
 FloorImageKey _normalizeFloorImageKey(FloorImageKey key) =>
     (imagePattern: key.imagePattern.trim(), floor: key.floor);
@@ -343,10 +346,10 @@ final floorImageUrlProvider = FutureProvider.family<String, FloorImageKey>((
   }
 
   final storageRef = FirebaseStorage.instance.refFromURL(
-    '$_floorImageFolder/${key.imagePattern}_${key.floor}f.svg',
+    '$_floorImageFolder/${normalizedKey.imagePattern}_${normalizedKey.floor}f.svg',
   );
-
-  return storageRef.getDownloadURL();
+  final url = await storageRef.getDownloadURL();
+  return url;
 });
 
 final floorImagePrefetchNotifierProvider =
@@ -358,31 +361,104 @@ class FloorImagePrefetchNotifier extends Notifier<Set<FloorImageKey>> {
   FloorImagePrefetchNotifier();
 
   final Set<FloorImageKey> _inFlight = <FloorImageKey>{};
+  final Set<FloorImageKey> _failed = <FloorImageKey>{};
 
   @override
   Set<FloorImageKey> build() => <FloorImageKey>{};
 
-  Future<void> ensurePrefetched(BuildContext context, FloorImageKey key) async {
+  Future<void> ensurePrefetched(FloorImageKey key) async {
     final normalizedKey = _normalizeFloorImageKey(key);
     if (normalizedKey.imagePattern.isEmpty) {
       return;
     }
-    if (state.contains(normalizedKey) || _inFlight.contains(normalizedKey)) {
+    if (state.contains(normalizedKey) ||
+        _inFlight.contains(normalizedKey) ||
+        _failed.contains(normalizedKey)) {
       return;
     }
 
     _inFlight.add(normalizedKey);
     try {
       final url = await ref.read(floorImageUrlProvider(normalizedKey).future);
-      if (!context.mounted) return;
-      await precacheImage(NetworkImage(url), context);
+      await ref.read(svgPayloadProvider(url).future);
+
       final nextState = Set<FloorImageKey>.from(state)..add(normalizedKey);
       state = nextState;
     } catch (_) {
+      _failed.add(normalizedKey);
     } finally {
       _inFlight.remove(normalizedKey);
     }
   }
+}
+
+class SvgPayload {
+  const SvgPayload({required this.bytes, required this.size});
+
+  final Uint8List bytes;
+  final Size size;
+}
+
+final svgPayloadProvider = FutureProvider.family<SvgPayload, String>((
+  ref,
+  url,
+) async {
+  final storageRef = FirebaseStorage.instance.refFromURL(url);
+  final rawBytes = await storageRef
+      .getData(_maxSvgFetchBytes)
+      .timeout(const Duration(seconds: 15));
+  if (rawBytes == null || rawBytes.isEmpty) {
+    throw StateError('Empty SVG data for $url');
+  }
+  final size = _parseSvgSize(rawBytes);
+  return SvgPayload(bytes: rawBytes, size: size);
+});
+
+Size _parseSvgSize(Uint8List svgBytes) {
+  final svgString = utf8.decode(svgBytes);
+  final width = _parseSvgLength(_extractSvgAttribute(svgString, 'width'));
+  final height = _parseSvgLength(_extractSvgAttribute(svgString, 'height'));
+
+  if (width != null && height != null && width > 0 && height > 0) {
+    return Size(width, height);
+  }
+
+  final viewBox = _extractSvgAttribute(svgString, 'viewBox');
+  if (viewBox != null) {
+    final parts = viewBox
+        .split(RegExp(r'[\s,]+'))
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (parts.length == 4) {
+      final vbWidth = double.tryParse(parts[2]);
+      final vbHeight = double.tryParse(parts[3]);
+      if (vbWidth != null && vbHeight != null && vbWidth > 0 && vbHeight > 0) {
+        return Size(vbWidth, vbHeight);
+      }
+    }
+  }
+
+  return const Size.square(1024);
+}
+
+String? _extractSvgAttribute(String svgContent, String attribute) {
+  final regex = RegExp('$attribute\\s*=\\s*"([^"]+)"', caseSensitive: false);
+  final match = regex.firstMatch(svgContent);
+  return match?.group(1)?.trim();
+}
+
+double? _parseSvgLength(String? rawValue) {
+  if (rawValue == null || rawValue.isEmpty) {
+    return null;
+  }
+
+  final trimmed = rawValue.trim();
+  final valueMatch = RegExp(r'(-?\d*\.?\d+)').firstMatch(trimmed);
+  if (valueMatch == null) {
+    return null;
+  }
+
+  return double.tryParse(valueMatch.group(1)!);
 }
 
 final activeRouteProvider =

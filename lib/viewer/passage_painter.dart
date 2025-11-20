@@ -30,6 +30,7 @@ class PassagePainter extends CustomPainter {
     required this.viewerSize,
     this.elevatorLinks = const [],
     required this.imageDimensions,
+    this.hideBaseEdges = false,
   }) : super(repaint: controller);
 
   final List<Edge> edges;
@@ -40,6 +41,7 @@ class PassagePainter extends CustomPainter {
   final Size viewerSize;
   final List<ElevatorVerticalLink> elevatorLinks;
   final Size imageDimensions;
+  final bool hideBaseEdges;
 
   Offset _toAbsolute(Offset relative) {
     if (imageDimensions.width == 0 || imageDimensions.height == 0) {
@@ -64,7 +66,8 @@ class PassagePainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final bool drawBaseEdges = routeSegments.isEmpty;
-    if (drawBaseEdges) {
+    final bool shouldDrawEdges = !hideBaseEdges && drawBaseEdges;
+    if (shouldDrawEdges) {
       for (final edge in edges) {
         canvas.drawLine(
           _toAbsolute(edge.start),
@@ -311,6 +314,7 @@ class PassagePainter extends CustomPainter {
         return true;
       }
     }
+    if (old.hideBaseEdges != hideBaseEdges) return true;
     return false;
   }
 }

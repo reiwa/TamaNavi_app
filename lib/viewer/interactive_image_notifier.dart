@@ -92,7 +92,12 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
   }
 
   void handleBuildingChanged(String activeBuildingId) {
-    state = state.copyWith(activeBuildingId: activeBuildingId);
+    if (state.activeBuildingId != activeBuildingId) {
+      transformationController.value = Matrix4.identity();
+      state = InteractiveImageState(activeBuildingId: activeBuildingId);
+    } else {
+      state = state.copyWith(activeBuildingId: activeBuildingId);
+    }
   }
 
   void handleMarkerTap(CachedSData element, bool wasSelected) {
@@ -138,6 +143,33 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
   int? syncToBuilding({CachedSData? focusElement}) {
     final active = ref.read(activeBuildingProvider);
     final imgState = state;
+
+    if (imgState.activeBuildingId != active.id) {
+      transformationController.value = Matrix4.identity();
+
+      final targetFloor = focusElement?.floor ?? 1;
+      final clampedFloor = targetFloor < 1
+          ? 1
+          : (targetFloor > active.floorCount ? active.floorCount : targetFloor);
+      final pageIndex = active.floorCount - clampedFloor;
+
+      final resetState = InteractiveImageState(
+        activeBuildingId: active.id,
+        currentFloor: clampedFloor,
+        selectedElement: focusElement,
+        tapPosition: focusElement?.position,
+        pendingFocusElement: focusElement,
+        suppressClearOnPageChange: focusElement != null,
+      );
+
+      state = resetState.copyWith(
+        isSearchMode: imgState.isSearchMode,
+        selectedRoomInfo: imgState.selectedRoomInfo,
+        currentBuildingRoomId: imgState.currentBuildingRoomId,
+        needsNavigationOnBuild: imgState.needsNavigationOnBuild,
+      );
+      return pageIndex;
+    }
 
     final targetFloor = focusElement?.floor ?? 1;
     final clampedFloor = targetFloor < 1

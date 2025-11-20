@@ -140,36 +140,67 @@ List<Widget> buildNodeMarkers({
 }) {
   final imageState = ref.watch(interactiveImageProvider);
   final notifier = ref.read(interactiveImageProvider.notifier);
+  final bool hasActiveRoute = routeNodeIds.isNotEmpty;
 
-  return relevantElements.map((sData) {
-    final isSelected = imageState.selectedElement?.id == sData.id;
+  final markers = <Widget>[];
+  for (final sData in relevantElements) {
+    final bool isSelected = imageState.selectedElement?.id == sData.id;
+    final bool isRouteNode = routeNodeIds.contains(sData.id);
+
+    if (hasActiveRoute &&
+        isRouteNode &&
+        sData.type == PlaceType.passage &&
+        !isSelected) {
+      continue;
+    }
+
     final baseColor = sData.type.color;
-    final color =
-        routeNodeIds.isNotEmpty &&
-            !routeNodeIds.contains(sData.id) &&
-            !isSelected
-        ? baseColor.withValues(alpha: 0.5)
+    final bool shouldDim = hasActiveRoute && !isRouteNode && !isSelected;
+    final color = shouldDim
+        ? _dimColorForType(baseColor, sData.type)
         : baseColor;
 
-    return NodeMarker(
-      key: ValueKey('${floor}_${sData.id}'),
-      data: isSelected && imageState.selectedElement != null
-          ? imageState.selectedElement!
-          : sData,
-      isSelected: isSelected,
-      pointerSize: pointerSize,
-      color: color,
-      enableDrag: self.enableElementDrag,
-      isConnecting: imageState.isConnecting,
-      imageDimensions: imageDimensions,
-      onTap: () => self.handleMarkerTap(sData, isSelected),
-      onDragStart: () {
-        if (!imageState.isDragging) {
-          notifier.setDragging(true);
-        }
-      },
-      onDragUpdate: (_) {},
-      onDragEnd: (position) => self.handleMarkerDragEnd(position, isSelected),
+    markers.add(
+      NodeMarker(
+        key: ValueKey('${floor}_${sData.id}'),
+        data: isSelected && imageState.selectedElement != null
+            ? imageState.selectedElement!
+            : sData,
+        isSelected: isSelected,
+        pointerSize: pointerSize,
+        color: color,
+        enableDrag: self.enableElementDrag,
+        isConnecting: imageState.isConnecting,
+        imageDimensions: imageDimensions,
+        onTap: () => self.handleMarkerTap(sData, isSelected),
+        onDragStart: () {
+          if (!imageState.isDragging) {
+            notifier.setDragging(true);
+          }
+        },
+        onDragUpdate: (_) {},
+        onDragEnd: (position) => self.handleMarkerDragEnd(position, isSelected),
+      ),
     );
-  }).toList();
+  }
+
+  return markers;
+}
+
+Color _dimColorForType(Color baseColor, PlaceType type) {
+  const double defaultAlpha = 0.5;
+  const double subduedPassageAlpha = 0.25;
+
+  double alpha = defaultAlpha;
+  switch (type) {
+    case PlaceType.passage:
+    case PlaceType.elevator:
+      alpha = subduedPassageAlpha;
+      break;
+    default:
+      alpha = defaultAlpha;
+      break;
+  }
+
+  return baseColor.withValues(alpha: alpha);
 }

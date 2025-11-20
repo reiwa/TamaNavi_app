@@ -284,7 +284,10 @@ class _EditorViewState extends ConsumerState<EditorView>
   }
 
   void _rebuildRoomPassageEdges() {
-    ref.read(activeBuildingProvider.notifier).rebuildRoomPassageEdges();
+    final imgState = ref.read(interactiveImageProvider);
+    ref
+        .read(activeBuildingProvider.notifier)
+        .rebuildRoomPassageEdges(imgState.imageDimensionsByFloor);
   }
 
   void _handleAddPressed() {

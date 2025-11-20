@@ -113,10 +113,16 @@ class _FloorPageView extends ConsumerWidget {
           final prefetchNotifier = ref.read(
             floorImagePrefetchNotifierProvider.notifier,
           );
+
+          final futures = <Future<void>>[];
           for (var f = 1; f <= snap.floorCount; f++) {
             if (f == floor) continue;
             final key = (imagePattern: imagePattern, floor: f);
-            await prefetchNotifier.ensurePrefetched(context, key);
+            futures.add(prefetchNotifier.ensurePrefetched(key));
+          }
+
+          if (futures.isNotEmpty) {
+            await Future.wait(futures);
           }
         });
       });
@@ -187,6 +193,7 @@ class _FloorPageView extends ConsumerWidget {
                     elevatorLinks: elevatorLinks,
                     passageEdges: passageEdges,
                     previewEdge: previewEdge,
+                    hasActiveRoute: hasActiveRoute,
                     ref: ref,
                   ),
                 ],

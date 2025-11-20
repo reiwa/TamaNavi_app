@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +32,7 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
   bool _isDataLoaded = false;
   bool _isAnimationDone = false;
   bool _showSplash = true;
+  bool _hasStartedDataLoad = false;
 
   @override
   void initState() {
@@ -40,12 +42,25 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
     });
   }
 
-  void _startDataLoading() {
-    if (!mounted) return;
-    setState(() {
-      _isDataLoaded = true;
-    });
-    _checkAndTransition();
+  Future<void> _startDataLoading() async {
+    if (!mounted || _hasStartedDataLoad) return;
+    _hasStartedDataLoad = true;
+
+    try {
+      await ref.read(tagSearchResultsProvider.future);
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('Failed to preload initial building data: $error');
+        debugPrint('$stackTrace');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDataLoaded = true;
+        });
+        _checkAndTransition();
+      }
+    }
   }
 
   @override
@@ -292,7 +307,7 @@ class _MyAppState extends State<MyApp> {
                   ),
                 ],
               ),
-              _isFinderVisible ? const RoomFinder() : Container(),
+              _isFinderVisible ? const RoomFinder() : const RoomFinder(),
             ],
           ),
         ),

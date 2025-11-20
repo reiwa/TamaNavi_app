@@ -17,6 +17,8 @@ const List<String> kFinderTagOptions = kBuildingTagOptions;
 
 final selectedTagProvider = StateProvider<String>((ref) => kFinderTagOptions.first);
 
+final finderSearchQueryProvider = StateProvider<String>((ref) => '');
+
 final tagSearchResultsProvider =
     FutureProvider<List<BuildingRoomInfo>>((ref) async {
   final selectedTag = ref.watch(selectedTagProvider);
@@ -120,6 +122,7 @@ class _FinderViewState extends ConsumerState<FinderView>
   bool _isProcessingIntent = false;
   ProviderSubscription<AsyncValue<Map<String, BuildingSnapshot>>>?
       _repositorySubscription;
+  ProviderSubscription<String>? _selectedTagSubscription;
 
   @override
   void initState() {
@@ -135,6 +138,14 @@ class _FinderViewState extends ConsumerState<FinderView>
       (previous, next) {
         if (!mounted) return;
         next.whenData((_) => _maybeProcessPendingIntent());
+      },
+    );
+
+    _selectedTagSubscription = ref.listenManual<String>(
+      selectedTagProvider,
+      (previous, next) {
+        if (previous == next) return;
+        ref.read(finderSearchQueryProvider.notifier).state = '';
       },
     );
 
@@ -201,6 +212,7 @@ class _FinderViewState extends ConsumerState<FinderView>
   @override
   void dispose() {
     _repositorySubscription?.close();
+    _selectedTagSubscription?.close();
     super.dispose();
   }
 
