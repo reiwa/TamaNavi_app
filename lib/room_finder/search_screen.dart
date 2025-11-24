@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tamanavi_app/models/room_finder_models.dart';
@@ -19,6 +21,8 @@ class FinderSearchContent extends ConsumerStatefulWidget {
 
 class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
   late final TextEditingController _searchController;
+  Timer? _queryDebounce;
+  static const Duration _debounceDuration = Duration(milliseconds: 250);
 
   @override
   void initState() {
@@ -30,18 +34,22 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
 
   @override
   void dispose() {
+    _queryDebounce?.cancel();
     _searchController.removeListener(_handleQueryChanged);
     _searchController.dispose();
     super.dispose();
   }
 
   void _handleQueryChanged() {
-    final notifier = ref.read(finderSearchQueryProvider.notifier);
     final nextValue = _searchController.text;
-    if (notifier.state == nextValue) {
-      return;
-    }
-    notifier.state = nextValue;
+    _queryDebounce?.cancel();
+    _queryDebounce = Timer(_debounceDuration, () {
+      final notifier = ref.read(finderSearchQueryProvider.notifier);
+      if (notifier.state == nextValue) {
+        return;
+      }
+      notifier.state = nextValue;
+    });
   }
 
   @override
@@ -248,10 +256,8 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
           (info.room.name.isEmpty ? info.room.id : info.room.name)
               .toLowerCase();
       final buildingLabel = info.buildingName.toLowerCase();
-      final roomId = info.room.id.toLowerCase();
       return roomLabel.contains(query) ||
-          buildingLabel.contains(query) ||
-          roomId.contains(query);
+          buildingLabel.contains(query);
     }).toList();
   }
 }

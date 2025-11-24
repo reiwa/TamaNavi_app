@@ -1,1 +1,39 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"saidai-roomfinder","appId":"1:387404482815:android:8cece073e4cf36edc664ca","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"saidai-roomfinder","configurations":{"android":"1:387404482815:android:8cece073e4cf36edc664ca","ios":"1:387404482815:ios:3d760d36d0a8b878c664ca","macos":"1:387404482815:ios:3d760d36d0a8b878c664ca","web":"1:387404482815:web:5a222827f5bc0826c664ca","windows":"1:387404482815:web:3f8037c8a15fee13c664ca"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "saidai-roomfinder",
+          "appId": "1:387404482815:android:8cece073e4cf36edc664ca",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "saidai-roomfinder",
+          "configurations": {
+            "android": "1:387404482815:android:8cece073e4cf36edc664ca",
+            "ios": "1:387404482815:ios:3d760d36d0a8b878c664ca",
+            "macos": "1:387404482815:ios:3d760d36d0a8b878c664ca",
+            "web": "1:387404482815:web:5a222827f5bc0826c664ca",
+            "windows": "1:387404482815:web:3f8037c8a15fee13c664ca"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

@@ -22,18 +22,27 @@ final finderSearchQueryProvider = StateProvider<String>((ref) => '');
 final tagSearchResultsProvider =
     FutureProvider<List<BuildingRoomInfo>>((ref) async {
   final selectedTag = ref.watch(selectedTagProvider);
+  final rawQuery = ref.watch(finderSearchQueryProvider);
+  final trimmedQuery = rawQuery.trim();
 
-  await ref
-      .read(buildingRepositoryProvider.notifier)
-      .fetchBuildingsByTag(selectedTag);
+  final repo = ref.read(buildingRepositoryProvider.notifier);
+
+  if (trimmedQuery.isEmpty) {
+    await repo.ensureTagLoaded(selectedTag);
+  } else {
+    await repo.ensureAllBuildingsLoaded();
+  }
 
   final map = ref.read(buildingRepositoryProvider).asData?.value ??
       const <String, BuildingSnapshot>{};
 
   final results = <BuildingRoomInfo>[];
+  final includeAllBuildings = trimmedQuery.isNotEmpty;
   for (final snapshot in map.values) {
     if (snapshot.id == kDraftBuildingId) continue;
-    if (!snapshot.tags.contains(selectedTag)) continue;
+    if (!includeAllBuildings && !snapshot.tags.contains(selectedTag)) {
+      continue;
+    }
     for (final room in snapshot.rooms) {
       results.add(
         BuildingRoomInfo(

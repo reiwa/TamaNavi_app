@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:tamanavi_app/room_editor/room_finder_app_editor.dart';
+import 'package:tamanavi_app/room_finder/building_cache_service.dart';
 import 'package:tamanavi_app/room_finder/room_finder_app.dart';
 import 'package:tamanavi_app/viewer/interactions/editor_interaction_delegate.dart';
 import 'package:tamanavi_app/viewer/interactions/finder_interaction_delegate.dart';
@@ -11,12 +13,22 @@ import 'package:tamanavi_app/viewer/interactions/interaction_delegate.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'firebase_options.dart';
 
+
 import 'splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const ProviderScope(child: MyApp()));
+  await Hive.initFlutter();
+  final buildingCacheService = await BuildingCacheService.initialize();
+  runApp(
+    ProviderScope(
+      overrides: [
+        buildingCacheServiceProvider.overrideWithValue(buildingCacheService),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class FinderWithSplash extends ConsumerStatefulWidget {
@@ -47,6 +59,8 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
     _hasStartedDataLoad = true;
 
     try {
+      final bootstrapper = ref.read(buildingDataBootstrapperProvider);
+      await bootstrapper.ensureLatestDataLoaded();
       await ref.read(tagSearchResultsProvider.future);
     } catch (error, stackTrace) {
       if (kDebugMode) {

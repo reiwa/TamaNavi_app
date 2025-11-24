@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tamanavi_app/models/active_building_notifier.dart';
-import 'package:tamanavi_app/models/building_snapshot.dart';
-import 'package:tamanavi_app/models/element_data_models.dart';
+import 'active_building_notifier.dart';
+import 'building_snapshot.dart';
+import 'element_data_models.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -30,6 +30,7 @@ final buildingRepositoryProvider =
     );
 
 class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
+  bool _allBuildingsLoaded = false;
   @override
   Future<Map<String, BuildingSnapshot>> build() async {
     return <String, BuildingSnapshot>{};
@@ -37,6 +38,38 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
 
   Map<String, BuildingSnapshot> get _currentSnapshots =>
       state.asData?.value ?? const <String, BuildingSnapshot>{};
+
+  void loadFromCache(
+    List<BuildingSnapshot> snapshots, {
+    required bool markAllBuildingsLoaded,
+  }) {
+    if (snapshots.isEmpty) {
+      return;
+    }
+    final next = <String, BuildingSnapshot>{
+      for (final snapshot in snapshots) snapshot.id: snapshot,
+    };
+    final draft = _currentSnapshots[kDraftBuildingId];
+    if (draft != null) {
+      next[kDraftBuildingId] = draft;
+    }
+    state = AsyncData(next);
+    _allBuildingsLoaded = markAllBuildingsLoaded;
+  }
+
+  Future<void> ensureTagLoaded(String tag) async {
+    if (_hasSnapshotsForTag(tag)) {
+      return;
+    }
+    await fetchBuildingsByTag(tag);
+  }
+
+  Future<void> ensureAllBuildingsLoaded() async {
+    if (_allBuildingsLoaded) {
+      return;
+    }
+    await fetchAllBuildings();
+  }
 
   Future<List<BuildingSnapshot>> fetchBuildingsByTag(String tag) async {
     final current = Map<String, BuildingSnapshot>.from(_currentSnapshots);
@@ -97,6 +130,41 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
         }
       }
       return result;
+    } catch (e, s) {
+      state = AsyncError(e, s);
+      rethrow;
+    }
+  }
+
+  Future<List<BuildingSnapshot>> fetchAllBuildings() async {
+    final current = Map<String, BuildingSnapshot>.from(_currentSnapshots);
+    try {
+      final query = await _firestore.collection('buildings').get();
+      if (query.docs.isEmpty) {
+        state = AsyncData(current);
+        return const <BuildingSnapshot>[];
+      }
+
+      int fallbackIndex = current.length;
+      final fetched = await Future.wait(
+        query.docs.map((doc) {
+          final parentJson = Map<String, dynamic>.from(doc.data())
+            ..putIfAbsent('id', () => doc.id);
+          return _snapshotFromParent(
+            parentJson: parentJson,
+            docRef: doc.reference,
+            fallbackIndex: ++fallbackIndex,
+          );
+        }),
+      );
+
+      for (final snapshot in fetched) {
+        current[snapshot.id] = snapshot;
+      }
+
+      state = AsyncData(current);
+      _allBuildingsLoaded = true;
+      return fetched;
     } catch (e, s) {
       state = AsyncError(e, s);
       rethrow;
@@ -283,6 +351,15 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
     } catch (e) {
       rethrow;
     }
+  }
+
+  bool _hasSnapshotsForTag(String tag) {
+    for (final snapshot in _currentSnapshots.values) {
+      if (snapshot.tags.contains(tag)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 

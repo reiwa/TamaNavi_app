@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
@@ -88,6 +89,7 @@ class _EditorViewState extends ConsumerState<EditorView>
 
     try {
       final uploadedId = await notifier.uploadDraftToFirestore();
+      await _updateMetadataVersion();
 
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
@@ -105,6 +107,30 @@ class _EditorViewState extends ConsumerState<EditorView>
         ),
       );
     }
+  }
+
+  Future<void> _updateMetadataVersion() async {
+    final firestore = FirebaseFirestore.instance;
+    final now = DateTime.now();
+    final formatted = _formatVersionLabel(now);
+
+    await firestore.collection('metadata').doc('building_data').set(
+      {
+        'version': formatted,
+        'updatedAt': Timestamp.fromDate(now),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  String _formatVersionLabel(DateTime timestamp) {
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+    final yy = twoDigits(timestamp.year % 100);
+    final mm = twoDigits(timestamp.month);
+    final dd = twoDigits(timestamp.day);
+    final hh = twoDigits(timestamp.hour);
+    final min = twoDigits(timestamp.minute);
+    return '$yy/$mm/$dd $hh:$min';
   }
 
   void _ensureDraftIsActive({bool checkAgain = true}) {

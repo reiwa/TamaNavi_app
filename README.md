@@ -18,3 +18,5 @@ git checkout main
 git fetch origin
 git pull origin main
 git branch -d 
+flutter build web
+firebase deploy --only hosting
