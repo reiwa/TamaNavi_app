@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/models/room_finder_models.dart';
-import 'package:tamanavi_app/viewer/interactive_image_state.dart';
 import 'package:tamanavi_app/viewer/interactions/interaction_delegate.dart';
+import 'package:tamanavi_app/viewer/interactive_image_state.dart';
 
 class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
   InteractiveImageNotifier({
@@ -34,7 +34,7 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
 
     if (isZoomedOut) {
       transformationController.value = Matrix4.identity()
-        ..scaleByDouble(1.1, 1.1, 1.1, 1.0);
+        ..scaleByDouble(1.1, 1.1, 1.1, 1);
     } else {
       transformationController.value = Matrix4.identity();
     }

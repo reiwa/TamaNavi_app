@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 
-import 'editor_fixed_screen.dart';
+import 'package:tamanavi_app/room_editor/editor_fixed_screen.dart';
 
 class EditorActionScreen extends StatelessWidget {
+
+  const EditorActionScreen({
+    required this.isConnecting, required this.selectedElement, required this.nameController, required this.xController, required this.yController, required this.onAdd, required this.onDelete, required this.onToggleConnect, super.key,
+  });
   final bool isConnecting;
   final CachedSData? selectedElement;
   final TextEditingController nameController;
@@ -13,18 +17,6 @@ class EditorActionScreen extends StatelessWidget {
   final Future<void> Function() onDelete;
   final VoidCallback onToggleConnect;
 
-  const EditorActionScreen({
-    super.key,
-    required this.isConnecting,
-    required this.selectedElement,
-    required this.nameController,
-    required this.xController,
-    required this.yController,
-    required this.onAdd,
-    required this.onDelete,
-    required this.onToggleConnect,
-  });
-
   @override
   Widget build(BuildContext context) {
     final element = selectedElement;
@@ -32,7 +24,7 @@ class EditorActionScreen extends StatelessWidget {
     return SizedBox(
       height: 78,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           children: [
             if (!isConnecting) ...[
@@ -66,11 +58,11 @@ class EditorActionScreen extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                         ),
+                        onPressed: onDelete,
                         child: const Text(
                           '削除する!',
                           style: TextStyle(color: Colors.white),
                         ),
-                        onPressed: () => onDelete(),
                       ),
                     ),
                     if (element.type.isGraphNode) ...[

@@ -16,12 +16,12 @@ class FinderSettingsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('設定'),
-      content: SizedBox(
+      content: const SizedBox(
         width: double.maxFinite,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text('More options coming soon...'),
             SizedBox(height: 24),
             Divider(),
@@ -51,7 +51,6 @@ class _AppInfoSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const Icon(Icons.info_outline, size: 16),
         const SizedBox(width: 8),

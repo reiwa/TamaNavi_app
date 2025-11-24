@@ -60,7 +60,7 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
     _sourceBuildingId = src.id;
     final newPassages = [
       for (final p in src.passages)
-        CachedPData(edges: p.edges.map((s) => Set<String>.from(s)).toSet()),
+        CachedPData(edges: p.edges.map(Set<String>.from).toSet()),
     ];
     state = BuildingSnapshot(
       id: kDraftBuildingId,
@@ -201,7 +201,7 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
 
       for (final room in entry.value) {
         CachedSData? closest;
-        double bestDist = double.infinity;
+        var bestDist = double.infinity;
         for (final p in floorPassages) {
           final dx = (room.position.dx - p.position.dx) * width;
           final dy = (room.position.dy - p.position.dy) * height;
@@ -277,14 +277,14 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
           [
             for (final p in sourceSnapshot.passages)
               CachedPData(
-                edges: p.edges.map((s) => Set<String>.from(s)).toSet(),
+                edges: p.edges.map(Set<String>.from).toSet(),
               ),
           ].isEmpty
           ? [CachedPData(edges: {})]
           : [
               for (final p in sourceSnapshot.passages)
                 CachedPData(
-                  edges: p.edges.map((s) => Set<String>.from(s)).toSet(),
+                  edges: p.edges.map(Set<String>.from).toSet(),
                 ),
             ],
     );
@@ -299,7 +299,7 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
       return draftSnapshot.id;
     }
 
-    final String uploadId = switch (_sourceBuildingId) {
+    final uploadId = switch (_sourceBuildingId) {
       null || kDraftBuildingId => _firestore.collection('buildings').doc().id,
       final id => id,
     };

@@ -3,16 +3,7 @@ import 'package:tamanavi_app/models/room_finder_models.dart';
 
 class FinderDetailContent extends StatelessWidget {
   const FinderDetailContent({
-    super.key,
-    required this.currentFloor,
-    required this.dropdownValue,
-    required this.roomsInBuilding,
-    required this.selectedRoomInfo,
-    required this.onRoomSelected,
-    required this.onReturnToSearch,
-    required this.interactiveImage,
-    required this.selectedElementLabel,
-    required this.onStartNavigation,
+    required this.currentFloor, required this.dropdownValue, required this.roomsInBuilding, required this.selectedRoomInfo, required this.onRoomSelected, required this.onReturnToSearch, required this.interactiveImage, required this.selectedElementLabel, required this.onStartNavigation, super.key,
   });
 
   final int currentFloor;
@@ -138,7 +129,7 @@ class FinderDetailContent extends StatelessWidget {
                       ? const SizedBox.shrink()
                       : ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            fixedSize: Size(double.infinity, 24),
+                            fixedSize: const Size(double.infinity, 24),
                             backgroundColor: Colors.green,
                           ),
                           onPressed: onStartNavigation,

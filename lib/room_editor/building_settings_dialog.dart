@@ -3,10 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:tamanavi_app/models/building_snapshot.dart';
 
 class BuildingSettings {
-  final String buildingName;
-  final int floorCount;
-  final String imageNamePattern;
-  final List<String> tags;
 
   BuildingSettings({
     required this.buildingName,
@@ -14,21 +10,21 @@ class BuildingSettings {
     required this.imageNamePattern,
     required this.tags,
   });
+  final String buildingName;
+  final int floorCount;
+  final String imageNamePattern;
+  final List<String> tags;
 }
 
 class SettingsDialog extends StatefulWidget {
+
+  const SettingsDialog({
+    required this.initialBuildingName, required this.initialFloorCount, required this.initialImagePattern, required this.initialTags, super.key,
+  });
   final String initialBuildingName;
   final int initialFloorCount;
   final String initialImagePattern;
   final List<String> initialTags;
-
-  const SettingsDialog({
-    super.key,
-    required this.initialBuildingName,
-    required this.initialFloorCount,
-    required this.initialImagePattern,
-    required this.initialTags,
-  });
 
   @override
   State<SettingsDialog> createState() => _SettingsDialogState();
@@ -151,7 +147,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                   if (value == null || value.isEmpty) {
                     return '階層数を入力してください';
                   }
-                  final int? count = int.tryParse(value);
+                  final count = int.tryParse(value);
                   if (count == null || count <= 0) {
                     return '1以上の数値を入力してください';
                   }

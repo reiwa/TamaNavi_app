@@ -3,19 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/room_editor/room_finder_invocation_provider.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 
-import 'room_finder_invocation_provider.dart';
-
 class SnapshotScreen extends ConsumerStatefulWidget {
-  final VoidCallback onSettingsPressed;
-  final Future<void> Function() onUploadPressed;
 
   const SnapshotScreen({
-    super.key,
-    required this.onSettingsPressed,
-    required this.onUploadPressed,
+    required this.onSettingsPressed, required this.onUploadPressed, super.key,
   });
+  final VoidCallback onSettingsPressed;
+  final Future<void> Function() onUploadPressed;
 
   @override
   ConsumerState<SnapshotScreen> createState() => _SnapshotScreenState();
@@ -69,7 +66,6 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: constraints.maxWidth),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: _InvocationPreview(snippet: invocationSnippet),

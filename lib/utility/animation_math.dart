@@ -2,18 +2,18 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 double explosiveEaseIn(double t, {required double period}) {
-  if (t == 0) return 0.0;
-  if (t == 1) return 1.0;
+  if (t == 0) return 0;
+  if (t == 1) return 1;
 
-  const double maxPower = 10.0;
-  const double minPower = 2.0;
-  const double maxPeriod = 100.0;
+  const maxPower = 10;
+  const minPower = 2;
+  const maxPeriod = 100;
 
-  final double clampedPeriod = period.clamp(1.0, maxPeriod);
+  final clampedPeriod = period.clamp(1.0, maxPeriod);
 
-  final double tLerp = (clampedPeriod - 1.0) / (maxPeriod - 1.0);
+  final tLerp = (clampedPeriod - 1.0) / (maxPeriod - 1.0);
 
-  final double power = maxPower + tLerp * (minPower - maxPower);
+  final power = maxPower + tLerp * (minPower - maxPower);
 
   return math.pow(t, power).toDouble();
 }
@@ -22,7 +22,7 @@ double elasticEaseOut(double t, {double amplitude = 1.0, double period = 0.4}) {
   if (t == 0) return 0;
   if (t == 1) return 1;
 
-  final double p = _getSafePeriod(period, 0.4);
+  final p = _getSafePeriod(period);
 
   final double s;
   if (amplitude < 1.0) {
@@ -32,10 +32,10 @@ double elasticEaseOut(double t, {double amplitude = 1.0, double period = 0.4}) {
     s = p / (2.0 * math.pi) * math.asin(1.0 / amplitude);
   }
 
-  return (amplitude *
+  return amplitude *
           math.pow(2, -10 * t) *
           math.sin((t - s) * (math.pi * 2.0) / p) +
-      1.0);
+      1.0;
 }
 
 double elasticEaseIn(double t, {double amplitude = 1.0, double period = 0.4}) {
@@ -52,7 +52,7 @@ double cubicBezierInterpolation(double t, List<double> controlPoints) {
     );
   }
 
-  final Cubic curve = Cubic(
+  final curve = Cubic(
     controlPoints[0],
     controlPoints[1],
     controlPoints[2],
@@ -66,7 +66,7 @@ double _getSafePeriod(double period, [double defaultPeriod = 0.4]) {
     return defaultPeriod;
   }
 
-  double p = period % 1.0;
+  final p = period % 1.0;
 
   if (p == 0.0 && period >= 1.0) {
     return defaultPeriod;
@@ -76,9 +76,9 @@ double _getSafePeriod(double period, [double defaultPeriod = 0.4]) {
 }
 
 class CustomCurve extends Curve {
-  final double Function(double) curveFn;
 
   const CustomCurve(this.curveFn);
+  final double Function(double) curveFn;
 
   @override
   double transformInternal(double t) => curveFn(t);

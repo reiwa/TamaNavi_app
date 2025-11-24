@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,8 +10,8 @@ import 'package:tamanavi_app/utility/platform_utils.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'package:tamanavi_app/viewer/interactive_image_state.dart';
 import 'package:tamanavi_app/viewer/interactive_screen.dart';
-import 'passage_painter.dart';
-import 'scroll_physics.dart';
+import 'package:tamanavi_app/viewer/passage_painter.dart';
+import 'package:tamanavi_app/viewer/scroll_physics.dart';
 
 part 'interaction_handler.dart';
 part 'building_sync.dart';
@@ -21,7 +20,7 @@ part 'view_builders.dart';
 enum CustomViewMode { editor, finder }
 
 abstract class CustomView extends ConsumerStatefulWidget {
-  const CustomView({super.key, required this.mode});
+  const CustomView({required this.mode, super.key});
 
   final CustomViewMode mode;
 }
@@ -56,7 +55,7 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
   }
 
   final double minScale = 0.8;
-  final double maxScale = 8.0;
+  final double maxScale = 8;
 
   @override
   void dispose() {
@@ -84,24 +83,22 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
 
   Widget buildInteractiveImage() {
     ref.watch(interactiveImageProvider.select((s) => s.currentZoomScale));
-    final bool canSwipe = canSwipeFloors;
-    final ScrollPhysics pagePhysics = canSwipe
+    final canSwipe = canSwipeFloors;
+    final pagePhysics = canSwipe
         ? TolerantPageScrollPhysics(
             canScroll: () => true,
-            directionTolerance: pi / 6,
           )
         : const NeverScrollableScrollPhysics();
     return Container(
       decoration: BoxDecoration(
         border: Border.all(
           color: Colors.green.withValues(alpha: 0.45),
-          width: 2.0,
+          width: 2,
         ),
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(0.0),
-          topRight: Radius.circular(12.0),
-          bottomLeft: Radius.circular(12.0),
-          bottomRight: Radius.circular(12.0),
+          topRight: Radius.circular(12),
+          bottomLeft: Radius.circular(12),
+          bottomRight: Radius.circular(12),
         ),
       ),
       clipBehavior: Clip.hardEdge,
@@ -120,7 +117,7 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
                 itemCount: snap.floorCount,
                 onPageChanged: _handlePageChanged,
                 itemBuilder: (context, pageIndex) {
-                  final int floor = snap.floorCount - pageIndex;
+                  final floor = snap.floorCount - pageIndex;
 
                   return _FloorPageView(self: this, floor: floor);
                 },

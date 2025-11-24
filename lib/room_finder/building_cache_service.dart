@@ -57,18 +57,6 @@ class BuildingCachePayload {
     required this.includesAllBuildings,
   });
 
-  final String version;
-  final List<BuildingSnapshot> snapshots;
-  final bool includesAllBuildings;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'version': version,
-      'snapshots': snapshots.map(_snapshotToCacheJson).toList(),
-      'includesAllBuildings': includesAllBuildings,
-    };
-  }
-
   factory BuildingCachePayload.fromJson(Map<String, dynamic> json) {
     final versionValue = json['version']?.toString();
     if (versionValue == null || versionValue.isEmpty) {
@@ -92,6 +80,18 @@ class BuildingCachePayload {
       snapshots: snapshots,
       includesAllBuildings: includesAll is bool ? includesAll : false,
     );
+  }
+
+  final String version;
+  final List<BuildingSnapshot> snapshots;
+  final bool includesAllBuildings;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'version': version,
+      'snapshots': snapshots.map(_snapshotToCacheJson).toList(),
+      'includesAllBuildings': includesAllBuildings,
+    };
   }
 }
 
@@ -136,7 +136,7 @@ class BuildingDataBootstrapper {
     }
 
     debugPrint('[BuildingBootstrap] Remote version: $remoteVersion');
-    final hasCompleteCache = cachedPayload?.includesAllBuildings == true;
+    final hasCompleteCache = cachedPayload?.includesAllBuildings ?? false;
     if (cachedPayload != null &&
         cachedPayload.version == remoteVersion &&
         hasCompleteCache) {
@@ -267,7 +267,7 @@ Map<String, dynamic> _cachedSDataToJson(CachedSData data) {
 
 CachedSData _cachedSDataFromJson(Map<String, dynamic> json) {
   final positionNode = json['position'];
-  Offset position = Offset.zero;
+  var position = Offset.zero;
   if (positionNode is Map) {
     final dx = (positionNode['dx'] as num?)?.toDouble();
     final dy = (positionNode['dy'] as num?)?.toDouble();

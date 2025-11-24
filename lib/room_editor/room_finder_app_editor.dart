@@ -3,16 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
+import 'package:tamanavi_app/models/room_finder_models.dart';
+import 'package:tamanavi_app/room_editor/building_settings_dialog.dart';
+import 'package:tamanavi_app/room_editor/editor_action_screen.dart';
+import 'package:tamanavi_app/room_editor/editor_fixed_screen.dart';
 import 'package:tamanavi_app/room_editor/snapshot_screen.dart';
 import 'package:tamanavi_app/utility/platform_utils.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'package:tamanavi_app/viewer/interactive_image_state.dart';
-import 'package:tamanavi_app/models/room_finder_models.dart';
 import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
-
-import 'building_settings_dialog.dart';
-import 'editor_fixed_screen.dart';
-import 'editor_action_screen.dart';
 
 class EditorView extends CustomView {
   const EditorView({super.key}) : super(mode: CustomViewMode.editor);
@@ -47,11 +46,11 @@ class _EditorViewState extends ConsumerState<EditorView>
     final isNew =
         ref.read(buildingRepositoryProvider).asData?.value[sourceId] == null;
 
-    final String message = isNew
+    final message = isNew
         ? '「${activeSnapshot.name}」を新しい建物としてサーバーに保存します。\nよろしいですか？'
         : '既存の建物データ（ID: $sourceId）を「${activeSnapshot.name}」として上書き保存します。\nよろしいですか？';
 
-    final bool? confirmed = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -246,11 +245,11 @@ class _EditorViewState extends ConsumerState<EditorView>
   }
 
   void _updateTapPositionFromTextFields() {
-    final double? x = double.tryParse(_xController.text);
-    final double? y = double.tryParse(_yController.text);
+    final x = double.tryParse(_xController.text);
+    final y = double.tryParse(_yController.text);
     if (x == null || y == null) return;
 
-    final Offset absolutePos = Offset(x, y);
+    final absolutePos = Offset(x, y);
 
     final imgState = ref.read(interactiveImageProvider);
     final imageDimensions =
@@ -262,7 +261,7 @@ class _EditorViewState extends ConsumerState<EditorView>
       return;
     }
 
-    final Offset relativePos = Offset(
+    final relativePos = Offset(
       (absolutePos.dx / imageDimensions.width).clamp(0.0, 1.0),
       (absolutePos.dy / imageDimensions.height).clamp(0.0, 1.0),
     );
@@ -276,11 +275,11 @@ class _EditorViewState extends ConsumerState<EditorView>
     ref.read(interactiveImageProvider.notifier).toggleConnectionMode();
   }
 
-  void _openSettingsDialog() async {
+  Future<void> _openSettingsDialog() async {
     final active = ref.read(activeBuildingProvider);
     final imageState = ref.watch(interactiveImageProvider);
 
-    final BuildingSettings? newSettings = await showDialog<BuildingSettings>(
+    final newSettings = await showDialog<BuildingSettings>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
@@ -318,14 +317,14 @@ class _EditorViewState extends ConsumerState<EditorView>
 
   void _handleAddPressed() {
     final name = _nameController.text.trim();
-    final double? x = double.tryParse(_xController.text);
-    final double? y = double.tryParse(_yController.text);
+    final x = double.tryParse(_xController.text);
+    final y = double.tryParse(_yController.text);
 
     final messenger = ScaffoldMessenger.of(context);
 
     if (name.isEmpty || x == null || y == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text("入力エラー: 名前、X、Yを正しく入力してください。")),
+        const SnackBar(content: Text('入力エラー: 名前、X、Yを正しく入力してください。')),
       );
       return;
     }
@@ -338,12 +337,12 @@ class _EditorViewState extends ConsumerState<EditorView>
         imageDimensions.width == 0 ||
         imageDimensions.height == 0) {
       messenger.showSnackBar(
-        const SnackBar(content: Text("エラー: 画像の寸法が取得できません。")),
+        const SnackBar(content: Text('エラー: 画像の寸法が取得できません。')),
       );
       return;
     }
 
-    final Offset relativePos = Offset(
+    final relativePos = Offset(
       (x / imageDimensions.width).clamp(0.0, 1.0),
       (y / imageDimensions.height).clamp(0.0, 1.0),
     );
@@ -357,13 +356,13 @@ class _EditorViewState extends ConsumerState<EditorView>
     final elementToDelete = ref.read(interactiveImageProvider).selectedElement;
     if (elementToDelete == null) return;
 
-    bool shouldDelete = true;
+    var shouldDelete = true;
 
     if (elementToDelete.type.isGraphNode &&
         ref
             .read(activeBuildingProvider.notifier)
             .hasEdges(elementToDelete.id)) {
-      final bool? confirmed = await showDialog<bool>(
+      final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) {
           return AlertDialog(
@@ -400,7 +399,7 @@ class _EditorViewState extends ConsumerState<EditorView>
   Widget build(BuildContext context) {
     final activeSnapshot = ref.watch(activeBuildingProvider);
     if (activeSnapshot.id != kDraftBuildingId) {
-      _ensureDraftIsActive(checkAgain: true);
+      _ensureDraftIsActive();
 
       return const Center(child: CircularProgressIndicator());
     }
@@ -460,10 +459,10 @@ class _EditorViewState extends ConsumerState<EditorView>
 }
 
 class _FloorHeader extends StatelessWidget {
-  final PlaceType currentType;
-  final ValueChanged<PlaceType> onTypeSelected;
 
   const _FloorHeader({required this.currentType, required this.onTypeSelected});
+  final PlaceType currentType;
+  final ValueChanged<PlaceType> onTypeSelected;
 
   @override
   Widget build(BuildContext context) {

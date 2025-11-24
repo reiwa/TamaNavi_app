@@ -8,7 +8,7 @@ Future<CachedSData?> showEntranceSelector({
   required String initialId,
   required ValueChanged<CachedSData> onFocus,
 }) {
-  if (entrances.isEmpty) return Future.value(null);
+  if (entrances.isEmpty) return Future.value();
 
   return showGeneralDialog<CachedSData>(
     context: context,
@@ -33,12 +33,12 @@ Future<CachedSData?> showEntranceSelector({
                     vertical: 12,
                   ),
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(
+                    borderRadius: BorderRadius.vertical(
                       top: Radius.circular(16),
                     ),
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
                         color: Colors.black26,
                         blurRadius: 12,
@@ -97,7 +97,7 @@ Future<CachedSData?> showEntranceSelector({
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () =>
-                                  Navigator.of(dialogContext).pop(null),
+                                  Navigator.of(dialogContext).pop(),
                               child: const Text(
                                 'キャンセル',
                                 style: TextStyle(fontSize: 14),

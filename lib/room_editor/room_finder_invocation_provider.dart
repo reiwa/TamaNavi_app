@@ -37,13 +37,13 @@ extension RoomFinderInvocationController
 
   void clearNavigateFrom() {
     if (state.navigateFrom != null) {
-      state = state.copyWith(navigateFrom: null);
+      state = state.copyWith();
     }
   }
 
   void clearNavigateTo() {
     if (state.navigateTo != null) {
-      state = state.copyWith(navigateTo: null);
+      state = state.copyWith();
     }
   }
 

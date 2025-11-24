@@ -2,14 +2,14 @@ import 'package:tamanavi_app/models/building_snapshot.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 
 class _AStarNode {
-  final String id;
-  double fScore;
 
   _AStarNode({required this.id, required this.fScore});
+  final String id;
+  double fScore;
 }
 
 class Pathfinder {
-  static const double _floorChangeCost = 1.0;
+  static const double _floorChangeCost = 1;
 
   double _heuristic(CachedSData a, CachedSData b) {
     final posDistance = (a.position - b.position).distance;
@@ -25,7 +25,7 @@ class Pathfinder {
     List<CachedSData> allGraphNodes,
     CachedSData targetRoom,
   ) {
-    Iterable<CachedSData> nodesOnSameFloor = allGraphNodes.where(
+    var nodesOnSameFloor = allGraphNodes.where(
       (node) => node.floor == targetRoom.floor,
     );
 
@@ -34,7 +34,7 @@ class Pathfinder {
     }
 
     CachedSData? closestNode;
-    double minDistance = double.infinity;
+    var minDistance = double.infinity;
 
     for (final node in nodesOnSameFloor) {
       final dist = _heuristic(node, targetRoom);
@@ -66,7 +66,7 @@ class Pathfinder {
     final allGraphNodes = snapshot.elements
         .where((e) => e.type.isGraphNode)
         .toList();
-    final nodeMap = {for (var n in allGraphNodes) n.id: n};
+    final nodeMap = {for (final n in allGraphNodes) n.id: n};
 
     final startNode = nodeMap[startNodeId];
     CachedSData? targetRoom;
@@ -81,7 +81,7 @@ class Pathfinder {
       return [];
     }
 
-    final CachedSData aStarTargetNode = targetRoom.type.isGraphNode
+    final aStarTargetNode = targetRoom.type.isGraphNode
         ? targetRoom
         : _findClosestGraphNode(allGraphNodes, targetRoom);
 
@@ -141,7 +141,7 @@ class Pathfinder {
     CachedSData targetRoom,
   ) {
     final pathNodes = <CachedSData>[];
-    String current = currentId;
+    var current = currentId;
 
     while (true) {
       final node = nodeMap[current];

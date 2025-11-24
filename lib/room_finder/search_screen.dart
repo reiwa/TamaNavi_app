@@ -7,9 +7,7 @@ import 'package:tamanavi_app/room_finder/room_finder_app.dart';
 
 class FinderSearchContent extends ConsumerStatefulWidget {
   const FinderSearchContent({
-    super.key,
-    required this.onTagSelected,
-    required this.onRoomTap,
+    required this.onTagSelected, required this.onRoomTap, super.key,
   });
 
   final ValueChanged<String> onTagSelected;
@@ -72,7 +70,6 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
             _buildTagSelector(context, selectedTag),
             _buildSearchField(context, searchQuery),
             Flexible(
-              fit: FlexFit.loose,
               child: resultsAsync.when(
                 data: (results) {
                   if (results.isEmpty) {

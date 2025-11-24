@@ -3,9 +3,7 @@ import 'package:tamanavi_app/models/element_data_models.dart';
 
 class PlaceTypeSelector extends StatelessWidget {
   const PlaceTypeSelector({
-    super.key,
-    required this.currentType,
-    required this.onTypeSelected,
+    required this.currentType, required this.onTypeSelected, super.key,
   });
 
   final PlaceType currentType;
@@ -33,10 +31,7 @@ class PlaceTypeSelector extends StatelessWidget {
 
 class EditorCoordinateInputs extends StatelessWidget {
   const EditorCoordinateInputs({
-    super.key,
-    required this.nameController,
-    required this.xController,
-    required this.yController,
+    required this.nameController, required this.xController, required this.yController, super.key,
   });
 
   final TextEditingController nameController;
@@ -81,7 +76,7 @@ class EditorCoordinateInputs extends StatelessWidget {
 }
 
 class EditorIdleScreen extends StatelessWidget {
-  const EditorIdleScreen({super.key, required this.onRebuildPressed});
+  const EditorIdleScreen({required this.onRebuildPressed, super.key});
 
   final VoidCallback onRebuildPressed;
 

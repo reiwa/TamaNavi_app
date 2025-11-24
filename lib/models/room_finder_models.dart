@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/widgets.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'active_building_notifier.dart';
-import 'building_snapshot.dart';
-import 'element_data_models.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod/src/providers/future_provider.dart';
+import 'package:riverpod/src/providers/provider.dart';
+import 'package:tamanavi_app/models/active_building_notifier.dart';
+import 'package:tamanavi_app/models/building_snapshot.dart';
+import 'package:tamanavi_app/models/element_data_models.dart';
 
 const String kDraftBuildingId = '__editor_draft__';
 
@@ -83,7 +86,7 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
         return const [];
       }
 
-      int fallbackIndex = current.length;
+      var fallbackIndex = current.length;
       final pending = <({
         Map<String, dynamic> parentJson,
         DocumentReference<Map<String, dynamic>> docRef,
@@ -145,7 +148,7 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
         return const <BuildingSnapshot>[];
       }
 
-      int fallbackIndex = current.length;
+      var fallbackIndex = current.length;
       final fetched = await Future.wait(
         query.docs.map((doc) {
           final parentJson = Map<String, dynamic>.from(doc.data())
@@ -363,7 +366,7 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
   }
 }
 
-final graphNodePositionsProvider = Provider.family<Map<String, Offset>, int>((
+final ProviderFamily<Map<String, Offset>, int> graphNodePositionsProvider = Provider.family<Map<String, Offset>, int>((
   ref,
   floor,
 ) {
@@ -376,7 +379,7 @@ final graphNodePositionsProvider = Provider.family<Map<String, Offset>, int>((
   };
 });
 
-final graphEdgesProvider = Provider.family<List<Edge>, int>((ref, floor) {
+final ProviderFamily<List<Edge>, int> graphEdgesProvider = Provider.family<List<Edge>, int>((ref, floor) {
   final positions = ref.watch(graphNodePositionsProvider(floor));
   final snap = ref.watch(activeBuildingProvider);
   final edges = <Edge>[];
@@ -413,7 +416,7 @@ class FloorImagePatternMissingException implements Exception {
   String toString() => message;
 }
 
-final floorImageUrlProvider = FutureProvider.family<String, FloorImageKey>((
+final FutureProviderFamily<String, FloorImageKey> floorImageUrlProvider = FutureProvider.family<String, FloorImageKey>((
   ref,
   key,
 ) async {
@@ -476,7 +479,7 @@ class SvgPayload {
   final Size size;
 }
 
-final svgPayloadProvider = FutureProvider.family<SvgPayload, String>((
+final FutureProviderFamily<SvgPayload, String> svgPayloadProvider = FutureProvider.family<SvgPayload, String>((
   ref,
   url,
 ) async {

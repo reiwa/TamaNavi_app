@@ -6,18 +6,7 @@ import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 
 class NodeMarker extends StatefulWidget {
   const NodeMarker({
-    super.key,
-    required this.data,
-    required this.isSelected,
-    required this.pointerSize,
-    required this.color,
-    required this.enableDrag,
-    required this.isConnecting,
-    required this.onTap,
-    required this.onDragStart,
-    required this.onDragUpdate,
-    required this.onDragEnd,
-    required this.imageDimensions,
+    required this.data, required this.isSelected, required this.pointerSize, required this.color, required this.enableDrag, required this.isConnecting, required this.onTap, required this.onDragStart, required this.onDragUpdate, required this.onDragEnd, required this.imageDimensions, super.key,
   });
 
   final CachedSData data;
@@ -140,12 +129,12 @@ List<Widget> buildNodeMarkers({
 }) {
   final imageState = ref.watch(interactiveImageProvider);
   final notifier = ref.read(interactiveImageProvider.notifier);
-  final bool hasActiveRoute = routeNodeIds.isNotEmpty;
+  final hasActiveRoute = routeNodeIds.isNotEmpty;
 
   final markers = <Widget>[];
   for (final sData in relevantElements) {
-    final bool isSelected = imageState.selectedElement?.id == sData.id;
-    final bool isRouteNode = routeNodeIds.contains(sData.id);
+    final isSelected = imageState.selectedElement?.id == sData.id;
+    final isRouteNode = routeNodeIds.contains(sData.id);
 
     if (hasActiveRoute &&
         isRouteNode &&
@@ -155,7 +144,7 @@ List<Widget> buildNodeMarkers({
     }
 
     final baseColor = sData.type.color;
-    final bool shouldDim = hasActiveRoute && !isRouteNode && !isSelected;
+    final shouldDim = hasActiveRoute && !isRouteNode && !isSelected;
     final color = shouldDim
         ? _dimColorForType(baseColor, sData.type)
         : baseColor;
@@ -188,18 +177,16 @@ List<Widget> buildNodeMarkers({
 }
 
 Color _dimColorForType(Color baseColor, PlaceType type) {
-  const double defaultAlpha = 0.5;
-  const double subduedPassageAlpha = 0.25;
+  const defaultAlpha = 0.5;
+  const subduedPassageAlpha = 0.25;
 
-  double alpha = defaultAlpha;
+  var alpha = defaultAlpha;
   switch (type) {
     case PlaceType.passage:
     case PlaceType.elevator:
       alpha = subduedPassageAlpha;
-      break;
     default:
       alpha = defaultAlpha;
-      break;
   }
 
   return baseColor.withValues(alpha: alpha);

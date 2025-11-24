@@ -1,20 +1,18 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:tamanavi_app/firebase_options.dart';
 import 'package:tamanavi_app/room_editor/room_finder_app_editor.dart';
 import 'package:tamanavi_app/room_finder/building_cache_service.dart';
 import 'package:tamanavi_app/room_finder/room_finder_app.dart';
+import 'package:tamanavi_app/splash_screen.dart';
 import 'package:tamanavi_app/viewer/interactions/editor_interaction_delegate.dart';
 import 'package:tamanavi_app/viewer/interactions/finder_interaction_delegate.dart';
 import 'package:tamanavi_app/viewer/interactions/interaction_delegate.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
-import 'firebase_options.dart';
-
-
-import 'splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -132,7 +130,7 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
   }
 }
 
-void startSvgLoading() async {
+Future<void> startSvgLoading() async {
   await preloadSvgs([
     'assets/images/ball.svg',
     'assets/images/玉.svg',
@@ -141,7 +139,7 @@ void startSvgLoading() async {
   ]);
 }
 
-void startFontLoading() async {
+Future<void> startFontLoading() async {
   final loader = FontLoader('RoundedMgenPlus')
     ..addFont(rootBundle.load('assets/fonts/rounded-x-mgenplus-2c-black.ttf'));
   await loader.load();
@@ -321,7 +319,7 @@ class _MyAppState extends State<MyApp> {
                   ),
                 ],
               ),
-              _isFinderVisible ? const RoomFinder() : const RoomFinder(),
+              if (_isFinderVisible) const RoomFinder() else const RoomFinder(),
             ],
           ),
         ),

@@ -1,17 +1,17 @@
-import 'package:flutter_riverpod/legacy.dart';
-import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/building_snapshot.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/models/room_finder_models.dart';
+import 'package:tamanavi_app/room_finder/detail_screen.dart';
+import 'package:tamanavi_app/room_finder/entrance_selector.dart';
+import 'package:tamanavi_app/room_finder/search_screen.dart';
+import 'package:tamanavi_app/room_finder/settings_dialog.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'package:tamanavi_app/viewer/interactive_image_state.dart';
 import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
-import 'package:tamanavi_app/room_finder/settings_dialog.dart';
-import 'detail_screen.dart';
-import 'search_screen.dart';
-import 'entrance_selector.dart';
 
 const List<String> kFinderTagOptions = kBuildingTagOptions;
 
@@ -288,7 +288,6 @@ class _FinderViewState extends ConsumerState<FinderView>
               buildingName: active.name,
               room: targetElement,
             ),
-            switchToDetail: false,
           );
     }
 
@@ -312,9 +311,7 @@ class _FinderViewState extends ConsumerState<FinderView>
           context: context,
           entrances: entrances,
           initialId: entrances.first.id,
-          onFocus: (entrance) {
-            _focusOnElement(entrance);
-          },
+          onFocus: _focusOnElement,
         );
 
         if (!mounted) return;
@@ -546,7 +543,7 @@ class _FinderViewState extends ConsumerState<FinderView>
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          Expanded(child: SizedBox.shrink()),
+          const Expanded(child: SizedBox.shrink()),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: '設定',

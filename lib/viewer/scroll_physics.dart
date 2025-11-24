@@ -3,14 +3,14 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class TolerantPageScrollPhysics extends PageScrollPhysics {
-  final bool Function() canScroll;
-  final double directionTolerance;
 
   const TolerantPageScrollPhysics({
     required this.canScroll,
     this.directionTolerance = pi / 6,
     super.parent,
   });
+  final bool Function() canScroll;
+  final double directionTolerance;
 
   @override
   bool shouldAcceptUserOffset(ScrollMetrics position) =>
@@ -27,7 +27,7 @@ class TolerantPageScrollPhysics extends PageScrollPhysics {
 
   @override
   double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
-    if (!canScroll()) return 0.0;
+    if (!canScroll()) return 0;
     return super.applyPhysicsToUserOffset(position, offset * 0.9);
   }
 

@@ -145,7 +145,7 @@ class _FloorPageView extends ConsumerWidget {
         final suffix = details.isEmpty ? '' : '\n${details.join(' ')}';
         return '$floor階の画像を取得できませんでした$suffix';
       }
-      return '$floor階の画像を取得できませんでした\n${error.toString()}';
+      return '$floor階の画像を取得できませんでした\n$error';
     }
 
     return LayoutBuilder(
@@ -168,11 +168,9 @@ class _FloorPageView extends ConsumerWidget {
             border: Border(
               top: BorderSide(
                 color: Colors.green.withValues(alpha: 0.45),
-                width: 1.0,
               ),
               bottom: BorderSide(
                 color: Colors.green.withValues(alpha: 0.45),
-                width: 1.0,
               ),
             ),
           ),

@@ -15,19 +15,8 @@ import 'package:uuid/uuid.dart';
 
 class InteractiveLayer extends StatelessWidget {
   const InteractiveLayer({
-    super.key,
-    required this.self,
-    required this.floor,
-    required this.imageUrl,
-    required this.viewerSize,
-    required this.relevantElements,
-    required this.routeNodeIds,
-    required this.routeVisualSegments,
-    required this.elevatorLinks,
-    required this.passageEdges,
+    required this.self, required this.floor, required this.imageUrl, required this.viewerSize, required this.relevantElements, required this.routeNodeIds, required this.routeVisualSegments, required this.elevatorLinks, required this.passageEdges, required this.hasActiveRoute, required this.ref, super.key,
     this.previewEdge,
-    required this.hasActiveRoute,
-    required this.ref,
   });
 
   final InteractiveImageMixin self;
@@ -57,8 +46,6 @@ class InteractiveLayer extends StatelessWidget {
             transformationController: transformationController,
             minScale: self.minScale,
             maxScale: self.maxScale,
-            panEnabled: true,
-            clipBehavior: Clip.hardEdge,
             boundaryMargin: const EdgeInsets.all(200),
             onInteractionStart: (_) {
               cachedScale = transformationController.value.getMaxScaleOnAxis();
@@ -93,8 +80,8 @@ class InteractiveLayer extends StatelessWidget {
 
         if (isDesktopOrElse)
           Positioned(
-            right: 10.0,
-            bottom: 10.0,
+            right: 10,
+            bottom: 10,
             child: IconButton(
               icon: Icon(
                 transformationController.value.getMaxScaleOnAxis() <= 1.05
@@ -126,9 +113,7 @@ class _InteractiveContent extends ConsumerStatefulWidget {
     required this.routeVisualSegments,
     required this.elevatorLinks,
     required this.passageEdges,
-    this.previewEdge,
-    required this.hasActiveRoute,
-    required this.ref,
+    required this.hasActiveRoute, required this.ref, this.previewEdge,
   });
 
   final InteractiveImageMixin self;
@@ -176,7 +161,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
             .read(interactiveImageProvider)
             .selectedElement;
         if (currentSelected != null && currentSelected.floor == widget.floor) {
-          _iconController.forward(from: 0.0);
+          _iconController.forward(from: 0);
         }
       });
     }
@@ -212,7 +197,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     final isSelected = next.selectedElement != null;
 
     if (!wasSelected && isSelected) {
-      _iconController.forward(from: 0.0);
+      _iconController.forward(from: 0);
     } else if (wasSelected && !isSelected) {
       _iconController.reset();
     }
@@ -287,7 +272,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       );
     }
 
-    Size displaySize = resolvedDimensions;
+    var displaySize = resolvedDimensions;
     if (resolvedDimensions.width > widget.viewerSize.width) {
       final scale = widget.viewerSize.width / resolvedDimensions.width;
       displaySize = Size(
@@ -310,7 +295,6 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
               payload.bytes,
               width: displaySize.width,
               height: displaySize.height,
-              fit: BoxFit.contain,
             ),
             loading: () => SizedBox(
               width: displaySize.width,

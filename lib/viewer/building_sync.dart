@@ -66,7 +66,7 @@ void ensureActiveBuildingSyncedLogic<T extends CustomView>(
     host._pendingContainerSync = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!host.mounted) return;
-      syncToBuildingLogic(host, ref, focusElement: null);
+      syncToBuildingLogic(host, ref);
       host._pendingContainerSync = false;
     });
   }

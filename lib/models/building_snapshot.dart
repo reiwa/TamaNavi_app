@@ -68,7 +68,7 @@ class BuildingSnapshot with _$BuildingSnapshot {
         (value) => value.name == typeName,
         orElse: () => PlaceType.room,
       );
-      Offset position = Offset.zero;
+      var position = Offset.zero;
       final positionNode = elementNode['position'];
       if (positionNode is Map<String, dynamic>) {
         final x = (positionNode['x'] as num?)?.toDouble();
@@ -97,9 +97,9 @@ class BuildingSnapshot with _$BuildingSnapshot {
       edgesMap.forEach((startId, endIds) {
         if (endIds is List) {
           for (final endId in endIds) {
-            final String endIdStr = endId.toString();
+            final endIdStr = endId.toString();
             final ids = [startId.toString(), endIdStr]..sort();
-            final pairKey = "${ids[0]}|${ids[1]}";
+            final pairKey = '${ids[0]}|${ids[1]}';
 
             if (addedPairs.add(pairKey)) {
               edges.add({startId.toString(), endIdStr});
@@ -138,10 +138,10 @@ class BuildingSnapshot with _$BuildingSnapshot {
     }
 
     return {
-      "building_name": name,
-      "floor_count": floorCount,
-      "image_pattern": imagePattern,
-      "tags": () {
+      'building_name': name,
+      'floor_count': floorCount,
+      'image_pattern': imagePattern,
+      'tags': () {
         final availableTagSet = kBuildingTagOptions.toSet();
         final filtered = <String>[
           for (final tag in tags)
@@ -153,7 +153,7 @@ class BuildingSnapshot with _$BuildingSnapshot {
         filtered.sort();
         return filtered;
       }(),
-      "edges_adjacency_list": edgesMap,
+      'edges_adjacency_list': edgesMap,
     };
   }
 }

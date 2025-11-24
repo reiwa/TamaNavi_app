@@ -27,13 +27,13 @@ bool canConnectNodes(CachedSData start, CachedSData tapped) {
         tapped.type == PlaceType.elevator;
   }
 
-  final bool tappedIsConnectable = tapped.type.isGraphNode;
-  final bool startIsSpecial =
+  final tappedIsConnectable = tapped.type.isGraphNode;
+  final startIsSpecial =
       start.type == PlaceType.elevator || start.type == PlaceType.entrance;
-  final bool tappedIsSpecial =
+  final tappedIsSpecial =
       tapped.type == PlaceType.elevator || tapped.type == PlaceType.entrance;
 
-  final bool isProhibitedConnection = startIsSpecial && tappedIsSpecial;
+  final isProhibitedConnection = startIsSpecial && tappedIsSpecial;
 
   return tappedIsConnectable && !isProhibitedConnection;
 }

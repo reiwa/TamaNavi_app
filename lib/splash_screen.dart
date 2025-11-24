@@ -12,7 +12,7 @@ Future<void> preloadSvgs(List<String> assetPaths) async {
     futures.add(
       svg.cache.putIfAbsent(loader.cacheKey(null), () async {
         try {
-          final ByteData data = await loader.loadBytes(null);
+          final data = await loader.loadBytes(null);
           return data;
         } catch (e) {
           debugPrint('Failed to preload SVG $path: $e');
@@ -25,9 +25,9 @@ Future<void> preloadSvgs(List<String> assetPaths) async {
 }
 
 class LogoSplashAnimation extends StatefulWidget {
-  final VoidCallback onAnimationComplete;
 
-  const LogoSplashAnimation({super.key, required this.onAnimationComplete});
+  const LogoSplashAnimation({required this.onAnimationComplete, super.key});
+  final VoidCallback onAnimationComplete;
 
   @override
   State<LogoSplashAnimation> createState() => _LogoSplashAnimationState();
@@ -51,8 +51,8 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
   late Animation<double> _biScaleX;
   late Animation<double> _biScaleY;
 
-  static const double _fps = 60.0;
-  static const double _totalFrames = 77.0;
+  static const double _fps = 60;
+  static const double _totalFrames = 77;
   static final int _animationDurationMs = (_totalFrames / _fps * 1000).round();
 
   @override
@@ -68,18 +68,18 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.51, end: 0.46).chain(
           CurveTween(
-            curve: CustomCurve((t) => explosiveEaseIn(t, period: 100.0)),
+            curve: CustomCurve((t) => explosiveEaseIn(t, period: 100)),
           ),
         ),
-        weight: 37.0,
+        weight: 37,
       ),
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.46, end: 0.51).chain(
           CurveTween(
-            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000.0)),
+            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000)),
           ),
         ),
-        weight: 8.0,
+        weight: 8,
       ),
       TweenSequenceItem(
         tween: ConstantTween<double>(0.51),
@@ -89,29 +89,29 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
 
     _ballScaleY = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.51, end: 0.0).chain(
+        tween: Tween<double>(begin: 0.51, end: 0).chain(
           CurveTween(
             curve: CustomCurve(
-              (t) => elasticEaseIn(t, amplitude: 1, period: 8),
+              (t) => elasticEaseIn(t, period: 8),
             ),
           ),
         ),
-        weight: 45.0,
+        weight: 45,
       ),
       TweenSequenceItem(
-        tween: ConstantTween<double>(0.0),
+        tween: ConstantTween<double>(0),
         weight: _totalFrames - 45.0,
       ),
     ]).animate(_controller);
 
     _tamaScaleX = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 44.0),
+      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 44),
       TweenSequenceItem(
         tween: Tween<double>(
           begin: 0.40,
           end: 0.50,
-        ).chain(CurveTween(curve: const Cubic(0.3, 0.0, 0.5, 1.0))),
-        weight: 15.0,
+        ).chain(CurveTween(curve: const Cubic(0.3, 0, 0.5, 1))),
+        weight: 15,
       ),
       TweenSequenceItem(
         tween: ConstantTween<double>(0.50),
@@ -120,16 +120,16 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
     ]).animate(_controller);
 
     _tamaScaleY = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 44.0),
+      TweenSequenceItem(tween: ConstantTween<double>(0), weight: 44),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.0, end: 0.50).chain(
+        tween: Tween<double>(begin: 0, end: 0.50).chain(
           CurveTween(
             curve: CustomCurve(
-              (t) => elasticEaseOut(t, amplitude: 1, period: 1),
+              (t) => elasticEaseOut(t, period: 1),
             ),
           ),
         ),
-        weight: 15.0,
+        weight: 15,
       ),
       TweenSequenceItem(
         tween: ConstantTween<double>(0.50),
@@ -139,35 +139,35 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
 
     _naOpacity = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.0, end: 1.0).chain(
+        tween: Tween<double>(begin: 0, end: 1).chain(
           CurveTween(
-            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1.0)),
+            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1)),
           ),
         ),
-        weight: 61.0,
+        weight: 61,
       ),
       TweenSequenceItem(
-        tween: ConstantTween<double>(1.0),
+        tween: ConstantTween<double>(1),
         weight: _totalFrames - 61.0,
       ),
     ]).animate(_controller);
 
     _naScaleX = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 52.0),
+      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 52),
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.40, end: 0.38).chain(
           CurveTween(
-            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000.0)),
+            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000)),
           ),
         ),
-        weight: 9.0,
+        weight: 9,
       ),
       TweenSequenceItem(
         tween: Tween<double>(
           begin: 0.38,
           end: 0.40,
-        ).chain(CurveTween(curve: const Cubic(0.1, 0.0, 0.7, 1.0))),
-        weight: 9.0,
+        ).chain(CurveTween(curve: const Cubic(0.1, 0, 0.7, 1))),
+        weight: 9,
       ),
       TweenSequenceItem(
         tween: ConstantTween<double>(0.40),
@@ -176,21 +176,21 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
     ]).animate(_controller);
 
     _naScaleY = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 52.0),
+      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 52),
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.40, end: 0.50).chain(
           CurveTween(
-            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000.0)),
+            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000)),
           ),
         ),
-        weight: 9.0,
+        weight: 9,
       ),
       TweenSequenceItem(
         tween: Tween<double>(
           begin: 0.50,
           end: 0.40,
-        ).chain(CurveTween(curve: const Cubic(0.1, 0.0, 0.7, 1.0))),
-        weight: 9.0,
+        ).chain(CurveTween(curve: const Cubic(0.1, 0, 0.7, 1))),
+        weight: 9,
       ),
       TweenSequenceItem(
         tween: ConstantTween<double>(0.40),
@@ -200,54 +200,54 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
 
     _biOpacity = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.0, end: 1.0).chain(
+        tween: Tween<double>(begin: 0, end: 1).chain(
           CurveTween(
-            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1.0)),
+            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1)),
           ),
         ),
-        weight: 68.0,
+        weight: 68,
       ),
       TweenSequenceItem(
-        tween: ConstantTween<double>(1.0),
+        tween: ConstantTween<double>(1),
         weight: _totalFrames - 68.0,
       ),
     ]).animate(_controller);
 
     _biScaleX = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 59.0),
+      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 59),
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.40, end: 0.38).chain(
           CurveTween(
-            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000.0)),
+            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000)),
           ),
         ),
-        weight: 9.0,
+        weight: 9,
       ),
       TweenSequenceItem(
         tween: Tween<double>(
           begin: 0.38,
           end: 0.40,
-        ).chain(CurveTween(curve: const Cubic(0.1, 0.0, 0.7, 1.0))),
-        weight: 9.0,
+        ).chain(CurveTween(curve: const Cubic(0.1, 0, 0.7, 1))),
+        weight: 9,
       ),
     ]).animate(_controller);
 
     _biScaleY = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 59.0),
+      TweenSequenceItem(tween: ConstantTween<double>(0.40), weight: 59),
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.40, end: 0.50).chain(
           CurveTween(
-            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000.0)),
+            curve: CustomCurve((t) => explosiveEaseIn(t, period: 1000)),
           ),
         ),
-        weight: 9.0,
+        weight: 9,
       ),
       TweenSequenceItem(
         tween: Tween<double>(
           begin: 0.50,
           end: 0.40,
-        ).chain(CurveTween(curve: const Cubic(0.1, 0.0, 0.7, 1.0))),
-        weight: 9.0,
+        ).chain(CurveTween(curve: const Cubic(0.1, 0, 0.7, 1))),
+        weight: 9,
       ),
     ]).animate(_controller);
 
@@ -281,7 +281,7 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
                 alignment: Alignment.center,
                 children: [
                   Transform.translate(
-                    offset: const Offset(-95.0, 63.0),
+                    offset: const Offset(-95, 63),
                     child: Transform.scale(
                       scaleX: _ballScaleX.value * 3.8,
                       scaleY: _ballScaleY.value * 3.8,
@@ -291,7 +291,7 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
                   ),
 
                   Transform.translate(
-                    offset: const Offset(-95.0, 52.5),
+                    offset: const Offset(-95, 52.5),
                     child: Transform.scale(
                       scaleX: _tamaScaleX.value * 4.0,
                       scaleY: _tamaScaleY.value * 4.0,
@@ -301,7 +301,7 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
                   ),
 
                   Transform.translate(
-                    offset: const Offset(23.0, 48.5),
+                    offset: const Offset(23, 48.5),
                     child: Opacity(
                       opacity: _naOpacity.value,
                       child: Transform.scale(

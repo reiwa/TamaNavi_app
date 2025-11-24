@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/room_editor/editor_connection_handler.dart';
-import 'package:tamanavi_app/viewer/interactive_image_state.dart';
 import 'package:tamanavi_app/viewer/interactions/interaction_delegate.dart';
+import 'package:tamanavi_app/viewer/interactive_image_state.dart';
 import 'package:uuid/uuid.dart';
 
 class EditorInteractionDelegate extends InteractionDelegate {

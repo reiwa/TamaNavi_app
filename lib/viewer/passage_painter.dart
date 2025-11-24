@@ -23,13 +23,10 @@ class ElevatorVerticalLink {
 class PassagePainter extends CustomPainter {
   PassagePainter({
     required this.edges,
-    this.previewEdge,
+    required this.controller, required this.viewerSize, required this.imageDimensions, this.previewEdge,
     this.connectingType,
-    required this.controller,
     this.routeSegments = const [],
-    required this.viewerSize,
     this.elevatorLinks = const [],
-    required this.imageDimensions,
     this.hideBaseEdges = false,
   }) : super(repaint: controller);
 
@@ -55,7 +52,7 @@ class PassagePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double scale = controller.value.getMaxScaleOnAxis();
+    final scale = controller.value.getMaxScaleOnAxis();
 
     final baseColor = PlaceType.passage.color;
     final previewColor = (connectingType ?? PlaceType.passage).color;
@@ -65,8 +62,8 @@ class PassagePainter extends CustomPainter {
       ..strokeWidth = 3.0 / scale.clamp(1.0, 10.0)
       ..style = PaintingStyle.stroke;
 
-    final bool drawBaseEdges = routeSegments.isEmpty;
-    final bool shouldDrawEdges = !hideBaseEdges && drawBaseEdges;
+    final drawBaseEdges = routeSegments.isEmpty;
+    final shouldDrawEdges = !hideBaseEdges && drawBaseEdges;
     if (shouldDrawEdges) {
       for (final edge in edges) {
         canvas.drawLine(
@@ -90,8 +87,8 @@ class PassagePainter extends CustomPainter {
       final dashPath = _dashPath(
         _toAbsolute(previewEdge!.start),
         _toAbsolute(previewEdge!.end),
-        5.0,
-        5.0,
+        5,
+        5,
       );
       canvas.drawPath(dashPath, previewPaint);
     }
@@ -101,11 +98,11 @@ class PassagePainter extends CustomPainter {
   }
 
   void _paintRouteSegments(Canvas canvas) {
-    final double effectiveScale = controller.value.getMaxScaleOnAxis().clamp(
+    final effectiveScale = controller.value.getMaxScaleOnAxis().clamp(
       1.0,
       10.0,
     );
-    final Paint chevronPaint = Paint()
+    final chevronPaint = Paint()
       ..color = Colors.redAccent
       ..strokeWidth = 3.6 / effectiveScale
       ..style = PaintingStyle.stroke
@@ -131,25 +128,25 @@ class PassagePainter extends CustomPainter {
     Paint chevronPaint,
     double effectiveScale,
   ) {
-    final Offset delta = segment.end - segment.start;
-    final double length = delta.distance;
+    final delta = segment.end - segment.start;
+    final length = delta.distance;
     if (length <= 0.0001) return;
 
-    final Offset direction = delta / length;
-    final Offset perpendicular = Offset(-direction.dy, direction.dx);
-    final double spacing = 16.0 / effectiveScale;
-    final double depth = 12.0 / effectiveScale;
-    final double halfWidth = 9.0 / effectiveScale;
+    final direction = delta / length;
+    final perpendicular = Offset(-direction.dy, direction.dx);
+    final spacing = 16.0 / effectiveScale;
+    final depth = 12.0 / effectiveScale;
+    final halfWidth = 9.0 / effectiveScale;
     final double tailPadding = max(depth * 1.0, 0.0 / effectiveScale);
 
-    final List<double> positions = [];
-    double walk = spacing * 0.6;
+    final positions = <double>[];
+    var walk = spacing * 0.6;
     while (walk < length - tailPadding) {
       positions.add(walk);
       walk += spacing;
     }
 
-    final double finalPosition = length - tailPadding;
+    final finalPosition = length - tailPadding;
     if (finalPosition > depth &&
         (positions.isEmpty ||
             (finalPosition - positions.last) > (spacing * 0.4))) {
@@ -158,8 +155,8 @@ class PassagePainter extends CustomPainter {
       positions.add(length / 2);
     }
 
-    for (final double position in positions) {
-      final Offset tip = segment.start + direction * position;
+    for (final position in positions) {
+      final tip = segment.start + direction * position;
       _drawChevron(
         canvas,
         tip,
@@ -181,9 +178,9 @@ class PassagePainter extends CustomPainter {
     double halfWidth,
     Paint paint,
   ) {
-    final Offset base = tip - direction * depth;
-    final Offset left = base + perpendicular * halfWidth;
-    final Offset right = base - perpendicular * halfWidth;
+    final base = tip - direction * depth;
+    final left = base + perpendicular * halfWidth;
+    final right = base - perpendicular * halfWidth;
     canvas.drawLine(tip, left, paint);
     canvas.drawLine(tip, right, paint);
   }
@@ -206,7 +203,7 @@ class PassagePainter extends CustomPainter {
     final fullDash = dashWidth + dashSpace;
     final numDashes = (totalLength / fullDash).floor();
 
-    for (int i = 0; i < numDashes; i++) {
+    for (var i = 0; i < numDashes; i++) {
       final dashStart = start + (end - start) * (i * fullDash / totalLength);
       final dashEnd =
           start + (end - start) * ((i * fullDash + dashWidth) / totalLength);
@@ -217,21 +214,21 @@ class PassagePainter extends CustomPainter {
   }
 
   void _paintElevatorLinks(Canvas canvas) {
-    const double baseLength = 60.0;
-    final double effectiveScale = controller.value.getMaxScaleOnAxis().clamp(
+    const baseLength = 60;
+    final effectiveScale = controller.value.getMaxScaleOnAxis().clamp(
       1.0,
       10.0,
     );
     for (final link in elevatorLinks) {
-      final Offset absoluteOrigin = _toAbsolute(link.origin);
-      final double direction = link.isUpward ? -1.0 : 1.0;
-      final double arrowLength = baseLength / effectiveScale;
-      final Offset endPoint =
+      final absoluteOrigin = _toAbsolute(link.origin);
+      final direction = link.isUpward ? -1.0 : 1.0;
+      final arrowLength = baseLength / effectiveScale;
+      final endPoint =
           absoluteOrigin + Offset(0, arrowLength * direction);
-      final Color arrowColorBase = link.highlight
+      final arrowColorBase = link.highlight
           ? Colors.orangeAccent
           : link.color;
-      final Paint shaftPaint = Paint()
+      final shaftPaint = Paint()
         ..color = arrowColorBase.withValues(alpha: link.highlight ? 1.0 : 0.4)
         ..strokeWidth = 3.2 / effectiveScale
         ..style = PaintingStyle.stroke
@@ -239,8 +236,8 @@ class PassagePainter extends CustomPainter {
 
       canvas.drawLine(absoluteOrigin, endPoint, shaftPaint);
 
-      final double headSize = 6.0 / effectiveScale;
-      final Path headPath = Path()
+      final headSize = 6.0 / effectiveScale;
+      final headPath = Path()
         ..moveTo(endPoint.dx - headSize, endPoint.dy)
         ..lineTo(endPoint.dx + headSize, endPoint.dy)
         ..lineTo(endPoint.dx, endPoint.dy + headSize * direction * 1.5)
@@ -266,7 +263,7 @@ class PassagePainter extends CustomPainter {
           textDirection: TextDirection.ltr,
         )..layout();
 
-        final Offset labelOffset =
+        final labelOffset =
             endPoint +
             Offset(
               6.0 / effectiveScale,
@@ -289,14 +286,14 @@ class PassagePainter extends CustomPainter {
       return true;
     }
     if (old.edges.length != edges.length) return true;
-    for (int i = 0; i < edges.length; i++) {
+    for (var i = 0; i < edges.length; i++) {
       if (old.edges[i].start != edges[i].start ||
           old.edges[i].end != edges[i].end) {
         return true;
       }
     }
     if (old.elevatorLinks.length != elevatorLinks.length) return true;
-    for (int i = 0; i < elevatorLinks.length; i++) {
+    for (var i = 0; i < elevatorLinks.length; i++) {
       final oldLink = old.elevatorLinks[i];
       final newLink = elevatorLinks[i];
       if (oldLink.origin != newLink.origin ||
@@ -308,7 +305,7 @@ class PassagePainter extends CustomPainter {
       }
     }
     if (old.routeSegments.length != routeSegments.length) return true;
-    for (int i = 0; i < routeSegments.length; i++) {
+    for (var i = 0; i < routeSegments.length; i++) {
       if (old.routeSegments[i].start != routeSegments[i].start ||
           old.routeSegments[i].end != routeSegments[i].end) {
         return true;

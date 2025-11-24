@@ -62,14 +62,14 @@ class CachedSData with _$CachedSData {
 }
 
 class CachedPData {
-  Set<Set<String>> edges;
   CachedPData({required this.edges});
+  Set<Set<String>> edges;
 }
 
 class Edge {
+  Edge({required this.start, required this.end});
   final Offset start;
   final Offset end;
-  Edge({required this.start, required this.end});
 }
 
 class RouteSegment {
