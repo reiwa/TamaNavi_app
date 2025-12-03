@@ -1,13 +1,66 @@
 part of 'room_finder_viewer.dart';
 
-class _FloorPageView extends ConsumerWidget {
+class _FloorPageView extends ConsumerStatefulWidget {
   const _FloorPageView({required this.self, required this.floor});
 
   final InteractiveImageMixin self;
   final int floor;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FloorPageView> createState() => _FloorPageViewState();
+}
+
+class _FloorPageViewState extends ConsumerState<_FloorPageView>
+    with AutomaticKeepAliveClientMixin<_FloorPageView> {
+  String? _lastPrefetchPattern;
+  String? _lastPrefetchBuildingId;
+  int? _lastPrefetchFloorCount;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  void _schedulePrefetchOnce({
+    required String buildingId,
+    required String imagePattern,
+    required int floorCount,
+    required int currentFloor,
+  }) {
+    if (imagePattern.isEmpty) return;
+    final alreadyPrefetched =
+        _lastPrefetchPattern == imagePattern &&
+        _lastPrefetchBuildingId == buildingId &&
+        _lastPrefetchFloorCount == floorCount;
+    if (alreadyPrefetched) {
+      return;
+    }
+
+    _lastPrefetchPattern = imagePattern;
+    _lastPrefetchBuildingId = buildingId;
+    _lastPrefetchFloorCount = floorCount;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final prefetchNotifier =
+          ref.read(floorImagePrefetchNotifierProvider.notifier);
+
+      final futures = <Future<void>>[];
+      for (var f = 1; f <= floorCount; f++) {
+        if (f == currentFloor) continue;
+        final key = (imagePattern: imagePattern, floor: f);
+        futures.add(prefetchNotifier.ensurePrefetched(key));
+      }
+
+      if (futures.isNotEmpty) {
+        await Future.wait(futures);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final self = widget.self;
+    final floor = widget.floor;
     final snap = ref.watch(activeBuildingProvider);
     final relevantElements = snap.elements
         .where((sData) => sData.floor == floor)
@@ -31,6 +84,8 @@ class _FloorPageView extends ConsumerWidget {
           RouteVisualSegment(
             start: segment.from.position,
             end: segment.to.position,
+            fromType: segment.from.type,
+            toType: segment.to.type,
           ),
         );
       }
@@ -87,46 +142,30 @@ class _FloorPageView extends ConsumerWidget {
       pushElevatorLink(second, first);
     }
 
-    final imageState = ref.watch(interactiveImageProvider);
+    final connectionState = ref.watch(
+      interactiveImageProvider.select(
+        (s) => (
+          isConnecting: s.isConnecting,
+          connectingStart: s.connectingStart,
+          previewPosition: s.previewPosition,
+        ),
+      ),
+    );
 
     Edge? previewEdge;
-    if (imageState.isConnecting &&
-        imageState.connectingStart != null &&
-        imageState.previewPosition != null &&
-        imageState.connectingStart!.floor == floor) {
+    if (connectionState.isConnecting &&
+        connectionState.connectingStart != null &&
+        connectionState.previewPosition != null &&
+        connectionState.connectingStart!.floor == floor) {
       previewEdge = Edge(
-        start: imageState.connectingStart!.position,
-        end: imageState.previewPosition!,
+        start: connectionState.connectingStart!.position,
+        end: connectionState.previewPosition!,
       );
     }
 
     final imagePattern = snap.imagePattern.trim();
     final imageKey = (imagePattern: imagePattern, floor: floor);
     final imageUrlValue = ref.watch(floorImageUrlProvider(imageKey));
-
-    void scheduleDeferredPrefetch() {
-      if (imagePattern.isEmpty) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        Future.microtask(() async {
-          if (!context.mounted) return;
-          final prefetchNotifier = ref.read(
-            floorImagePrefetchNotifierProvider.notifier,
-          );
-
-          final futures = <Future<void>>[];
-          for (var f = 1; f <= snap.floorCount; f++) {
-            if (f == floor) continue;
-            final key = (imagePattern: imagePattern, floor: f);
-            futures.add(prefetchNotifier.ensurePrefetched(key));
-          }
-
-          if (futures.isNotEmpty) {
-            await Future.wait(futures);
-          }
-        });
-      });
-    }
 
     String buildImageErrorText(Object error) {
       if (error is FloorImagePatternMissingException) {
@@ -163,21 +202,15 @@ class _FloorPageView extends ConsumerWidget {
                     ? constraints.minHeight
                     : mediaSize.height),
         );
-        return Container(
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: Colors.green.withValues(alpha: 0.45),
-              ),
-              bottom: BorderSide(
-                color: Colors.green.withValues(alpha: 0.45),
-              ),
-            ),
-          ),
-          clipBehavior: Clip.hardEdge,
+        return ClipRect(
           child: imageUrlValue.when(
             data: (imageUrl) {
-              scheduleDeferredPrefetch();
+              _schedulePrefetchOnce(
+                buildingId: snap.id,
+                imagePattern: imagePattern,
+                floorCount: snap.floorCount,
+                currentFloor: floor,
+              );
               return Stack(
                 children: [
                   InteractiveLayer(

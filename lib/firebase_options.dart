@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'saidai-roomfinder.firebasestorage.app',
     measurementId: 'G-QS39M9E6GX',
   );
+
 }

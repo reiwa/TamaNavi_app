@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +12,7 @@ import 'package:tamanavi_app/room_editor/room_finder_app_editor.dart';
 import 'package:tamanavi_app/room_finder/building_cache_service.dart';
 import 'package:tamanavi_app/room_finder/room_finder_app.dart';
 import 'package:tamanavi_app/splash_screen.dart';
+import 'package:tamanavi_app/theme/app_theme.dart';
 import 'package:tamanavi_app/viewer/interactions/editor_interaction_delegate.dart';
 import 'package:tamanavi_app/viewer/interactions/finder_interaction_delegate.dart';
 import 'package:tamanavi_app/viewer/interactions/interaction_delegate.dart';
@@ -19,6 +23,21 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await Hive.initFlutter();
   final buildingCacheService = await BuildingCacheService.initialize();
+
+  try {
+    if (FirebaseAuth.instance.currentUser == null) {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: "x27c65c67c26k@gmail.com",
+        password: "puku3708",
+      );
+      debugPrint("管理者アカウントでログインしました");
+    }
+
+    debugPrint("現在のUID: ${FirebaseAuth.instance.currentUser?.uid}");
+  } catch (e) {
+    debugPrint("ログインエラー: $e");
+  }
+  
   runApp(
     ProviderScope(
       overrides: [
@@ -47,9 +66,9 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.endOfFrame.then((_) {
-      _startDataLoading();
-    });
+    unawaited(
+      WidgetsBinding.instance.endOfFrame.then((_) => _startDataLoading()),
+    );
   }
 
   Future<void> _startDataLoading() async {
@@ -60,7 +79,7 @@ class _FinderWithSplashState extends ConsumerState<FinderWithSplash> {
       final bootstrapper = ref.read(buildingDataBootstrapperProvider);
       await bootstrapper.ensureLatestDataLoaded();
       await ref.read(tagSearchResultsProvider.future);
-    } catch (error, stackTrace) {
+    } on Exception catch (error, stackTrace) {
       if (kDebugMode) {
         debugPrint('Failed to preload initial building data: $error');
         debugPrint('$stackTrace');
@@ -231,12 +250,8 @@ class _RoomFinderState extends State<RoomFinder> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        fontFamily: 'RoundedMgenPlus',
-        textTheme: ThemeData.light().textTheme.apply(
-          fontFamily: 'RoundedMgenPlus',
-        ),
-      ),
+      theme: buildAppTheme(),
+      debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(
           child: Stack(
@@ -291,13 +306,22 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    startSvgLoading();
-    startFontLoading();
+    _preloadResources();
+  }
+
+  void _preloadResources() {
+    unawaited(
+      Future.wait([
+        startSvgLoading(),
+        startFontLoading(),
+      ]),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: buildAppTheme(),
       title: 'Hello Flutter',
       //showPerformanceOverlay: true,
       home: Scaffold(

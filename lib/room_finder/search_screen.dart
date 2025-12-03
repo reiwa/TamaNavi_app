@@ -7,14 +7,17 @@ import 'package:tamanavi_app/room_finder/room_finder_app.dart';
 
 class FinderSearchContent extends ConsumerStatefulWidget {
   const FinderSearchContent({
-    required this.onTagSelected, required this.onRoomTap, super.key,
+    required this.onTagSelected,
+    required this.onRoomTap,
+    super.key,
   });
 
   final ValueChanged<String> onTagSelected;
   final ValueChanged<BuildingRoomInfo> onRoomTap;
 
   @override
-  ConsumerState<FinderSearchContent> createState() => _FinderSearchContentState();
+  ConsumerState<FinderSearchContent> createState() =>
+      _FinderSearchContentState();
 }
 
 class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
@@ -25,16 +28,18 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
   @override
   void initState() {
     super.initState();
-    _searchController =
-        TextEditingController(text: ref.read(finderSearchQueryProvider));
+    _searchController = TextEditingController(
+      text: ref.read(finderSearchQueryProvider),
+    );
     _searchController.addListener(_handleQueryChanged);
   }
 
   @override
   void dispose() {
     _queryDebounce?.cancel();
-    _searchController.removeListener(_handleQueryChanged);
-    _searchController.dispose();
+    _searchController
+      ..removeListener(_handleQueryChanged)
+      ..dispose();
     super.dispose();
   }
 
@@ -96,7 +101,9 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
                 error: (error, stack) => Center(
                   child: Text(
                     '読み込みに失敗しました',
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
                 loading: () => const Center(
@@ -111,43 +118,61 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
   }
 
   Widget _buildTagSelector(BuildContext context, String selectedTag) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Center(
         child: Wrap(
-          spacing: 18,
-          runSpacing: 9,
+          spacing: 12,
+          runSpacing: 12,
           alignment: WrapAlignment.center,
           children: [
-            for (int i = 0; i < kFinderTagOptions.length; i++)
-              SizedBox(
-                width: 140,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
+            for (final tag in kFinderTagOptions)
+              AnimatedScale(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutBack,
+                scale: selectedTag == tag ? 1.05 : 1,
+                child: SizedBox(
+                  width: 132,
+                  child: ChoiceChip(
+                    label: Center(
+                      child: Text(
+                        tag,
+                        style: textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: selectedTag == tag
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    tooltip: '$tagを絞り込む',
+                    selected: selectedTag == tag,
+                    onSelected: (value) {
+                      if (!value || selectedTag == tag) {
+                        return;
+                      }
+                      widget.onTagSelected(tag);
+                    },
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(22),
+                      side: BorderSide(
+                        color: selectedTag == tag
+                            ? colorScheme.primary
+                            : colorScheme.outlineVariant,
+                        width: 1.2,
+                      ),
                     ),
-                    backgroundColor: selectedTag == kFinderTagOptions[i]
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.grey.shade200,
-                    foregroundColor: selectedTag == kFinderTagOptions[i]
-                        ? Colors.white
-                        : Theme.of(context).colorScheme.onSurface,
-                    elevation: selectedTag == kFinderTagOptions[i] ? 4 : 0,
-                  ),
-                  onPressed: () {
-                    if (selectedTag == kFinderTagOptions[i]) {
-                      return;
-                    }
-                    widget.onTagSelected(kFinderTagOptions[i]);
-                  },
-                  child: Text(
-                    kFinderTagOptions[i],
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                    selectedColor: colorScheme.primary,
+                    backgroundColor: colorScheme.surface,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 10,
                     ),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    showCheckmark: false,
+                    visualDensity: VisualDensity.comfortable,
                   ),
                 ),
               ),
@@ -158,6 +183,7 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
   }
 
   Widget _buildSearchField(BuildContext context, String searchQuery) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Center(
@@ -168,7 +194,10 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               hintText: '部屋名・建物名で検索',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: Icon(
+                Icons.search,
+                color: colorScheme.primary,
+              ),
               suffixIcon: searchQuery.isEmpty
                   ? null
                   : IconButton(
@@ -178,23 +207,14 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
                     ),
               isDense: true,
               filled: true,
-              fillColor: Colors.grey.shade100,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              fillColor: colorScheme.surface,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 1.4,
-                ),
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: colorScheme.outlineVariant),
               ),
             ),
           ),
@@ -204,36 +224,65 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
   }
 
   Widget _buildResultList(List<BuildingRoomInfo> visibleResults) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       itemCount: visibleResults.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final info = visibleResults[index];
         final title = info.room.name.isEmpty ? info.room.id : info.room.name;
-
-        return Column(
-          children: [
-            ListTile(
-              dense: true,
-              title: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
+        return Card(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => widget.onRoomTap(info),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: colorScheme.primary.withValues(
+                      alpha: 0.15,
+                    ),
+                    foregroundColor: colorScheme.primary,
+                    child: Text(
+                      '${info.room.floor}F',
+                      style: textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          info.buildingName,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ],
               ),
-              subtitle: Text(
-                info.buildingName,
-                style: const TextStyle(fontSize: 13),
-              ),
-              trailing: Text(
-                '${info.room.floor}階',
-                style: const TextStyle(fontSize: 13),
-              ),
-              onTap: () => widget.onRoomTap(info),
             ),
-            const Divider(height: 1),
-          ],
+          ),
         );
       },
     );
@@ -249,12 +298,10 @@ class _FinderSearchContentState extends ConsumerState<FinderSearchContent> {
     }
 
     return source.where((info) {
-      final roomLabel =
-          (info.room.name.isEmpty ? info.room.id : info.room.name)
-              .toLowerCase();
+      final roomLabel = (info.room.name.isEmpty ? info.room.id : info.room.name)
+          .toLowerCase();
       final buildingLabel = info.buildingName.toLowerCase();
-      return roomLabel.contains(query) ||
-          buildingLabel.contains(query);
+      return roomLabel.contains(query) || buildingLabel.contains(query);
     }).toList();
   }
 }

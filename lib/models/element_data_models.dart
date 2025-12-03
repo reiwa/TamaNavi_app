@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tamanavi_app/theme/app_theme.dart';
 
 part 'element_data_models.freezed.dart';
 
@@ -27,13 +28,17 @@ class _PlaceDescriptor implements PlaceDescriptor {
 enum PlaceType implements PlaceDescriptor {
   room(_PlaceDescriptor(color: Colors.blue, isGraphNode: true, label: '部屋')),
   passage(
-    _PlaceDescriptor(color: Colors.green, isGraphNode: true, label: '廊下'),
+    _PlaceDescriptor(color: AppPalette.primary, isGraphNode: true, label: '廊下'),
   ),
   elevator(
     _PlaceDescriptor(color: Colors.purple, isGraphNode: true, label: '階段'),
   ),
   entrance(
-    _PlaceDescriptor(color: Colors.teal, isGraphNode: true, label: '入口'),
+    _PlaceDescriptor(
+      color: AppPalette.secondary,
+      isGraphNode: true,
+      label: '入口',
+    ),
   );
 
   const PlaceType(this._descriptor);
@@ -85,10 +90,23 @@ class RouteSegment {
 }
 
 class RouteVisualSegment {
-  RouteVisualSegment({required this.start, required this.end});
+  RouteVisualSegment({
+    required this.start,
+    required this.end,
+    required this.fromType,
+    required this.toType,
+  });
 
   final Offset start;
   final Offset end;
+  final PlaceType fromType;
+  final PlaceType toType;
+
+  bool get touchesEntrance =>
+      fromType == PlaceType.entrance || toType == PlaceType.entrance;
+
+  bool get touchesElevator =>
+      fromType == PlaceType.elevator || toType == PlaceType.elevator;
 }
 
 extension CachedSDataFirestore on CachedSData {

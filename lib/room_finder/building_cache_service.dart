@@ -22,10 +22,10 @@ class BuildingCacheService {
   static const String _boxName = 'building_cache';
   static const String _payloadKey = 'payload';
 
-  final Box _box;
+  final Box<dynamic> _box;
 
   static Future<BuildingCacheService> initialize() async {
-    final box = await Hive.openBox(_boxName);
+    final box = await Hive.openBox<dynamic>(_boxName);
     return BuildingCacheService._(box);
   }
 
@@ -36,7 +36,7 @@ class BuildingCacheService {
     }
     try {
       return BuildingCachePayload.fromJson(Map<String, dynamic>.from(raw));
-    } catch (_) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -78,7 +78,7 @@ class BuildingCachePayload {
     return BuildingCachePayload(
       version: versionValue,
       snapshots: snapshots,
-      includesAllBuildings: includesAll is bool ? includesAll : false,
+      includesAllBuildings: includesAll is bool && includesAll,
     );
   }
 
@@ -166,9 +166,8 @@ class BuildingDataBootstrapper {
       debugPrint(
         '[BuildingBootstrap] Cache updated with ${snapshots.length} snapshots (version: $remoteVersion).',
       );
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       debugPrint('[BuildingBootstrap] Failed to refresh cache: $error\n$stack');
-      // Preserve cached data if network fetch fails.
     }
   }
 
@@ -187,7 +186,7 @@ class BuildingDataBootstrapper {
         return null;
       }
       return version.toString();
-    } catch (error, stack) {
+    } on Exception catch (error, stack) {
       debugPrint('[BuildingBootstrap] Failed to read remote metadata: $error\n$stack');
       return null;
     }

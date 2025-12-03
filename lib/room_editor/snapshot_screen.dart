@@ -19,40 +19,39 @@ class SnapshotScreen extends ConsumerStatefulWidget {
 }
 
 class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
-  late final ProviderSubscription<CachedSData?> _selectionSubscription;
+  bool _hasSeededSelection = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _selectionSubscription = ref.listenManual<CachedSData?>(
-      interactiveImageProvider.select((s) => s.selectedElement),
-      (prev, next) {
-        if (next == null) {
-          return;
-        }
+  void _handleSelectionChange(
+    CachedSData? previous,
+    CachedSData? next,
+  ) {
+    if (next == null) {
+      return;
+    }
 
-        final notifier = ref.read(roomFinderInvocationProvider.notifier);
-        if (next.type == PlaceType.entrance) {
-          notifier.setNavigateFrom(next.id);
-        } else {
-          notifier.setNavigateTo(next.id);
-        }
-      },
-      fireImmediately: true,
-    );
-  }
-
-  @override
-  void dispose() {
-    _selectionSubscription.close();
-    super.dispose();
+    final notifier = ref.read(roomFinderInvocationProvider.notifier);
+    if (next.type == PlaceType.entrance) {
+      notifier.setNavigateFrom(next.id);
+    } else {
+      notifier.setNavigateTo(next.id);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<CachedSData?>(
+      interactiveImageProvider.select((state) => state.selectedElement),
+      _handleSelectionChange,
+    );
+
     final selectedElement = ref.watch(
       interactiveImageProvider.select((state) => state.selectedElement),
     );
+
+    if (!_hasSeededSelection) {
+      _hasSeededSelection = true;
+      _handleSelectionChange(null, selectedElement);
+    }
     final invocationState = ref.watch(roomFinderInvocationProvider);
     final invocationSnippet = _buildRoomFinderInvocation(
       invocationState,
@@ -102,8 +101,8 @@ class _InvocationPreview extends StatelessWidget {
 
   final String snippet;
 
-  void _copyToClipboard(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: snippet));
+  Future<void> _copyToClipboard(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: snippet));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('RoomFinder呼び出しをコピーしました。')),
     );

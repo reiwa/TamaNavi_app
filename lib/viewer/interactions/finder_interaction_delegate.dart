@@ -53,7 +53,7 @@ class FinderInteractionDelegate extends InteractionDelegate {
         switchToDetail && wasSearchMode && autoNavigate;
 
     return state.copyWith(
-      isSearchMode: switchToDetail ? false : state.isSearchMode,
+      isSearchMode: !switchToDetail && state.isSearchMode,
       selectedRoomInfo: info,
       currentBuildingRoomId: info.room.id,
       needsNavigationOnBuild: needsNavigationOnBuild,
@@ -75,23 +75,24 @@ class FinderInteractionDelegate extends InteractionDelegate {
   @override
   CachedSData? resolveNavigationTarget(InteractiveImageState state) {
     final active = ref.read(activeBuildingProvider);
+    final info = state.selectedRoomInfo;
+    if (info != null) {
+      return _findElementById(active, info.room.id);
+    }
+
     final selected = state.selectedElement;
     if (selected != null) {
       final candidate = _findElementById(active, selected.id);
       if (candidate != null) {
         final route = ref.read(activeRouteProvider);
         final isRouteStart = route.isNotEmpty && route.first.id == candidate.id;
-        if (!isRouteStart || state.selectedRoomInfo == null) {
+        if (!isRouteStart) {
           return candidate;
         }
       }
     }
 
-    final info = state.selectedRoomInfo;
-    if (info == null) {
-      return null;
-    }
-    return _findElementById(active, info.room.id);
+    return null;
   }
 
   @override

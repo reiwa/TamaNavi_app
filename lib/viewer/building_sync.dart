@@ -89,10 +89,10 @@ void syncToBuildingLogic<T extends CustomView>(
       }
     });
   } else {
-    final transformationController = ref
+    ref
         .read(interactiveImageProvider.notifier)
-        .transformationController;
-    transformationController.value = Matrix4.identity();
+        .transformationController
+        .value = Matrix4.identity();
   }
 }
 
@@ -106,9 +106,9 @@ void applyPendingFocusIfAnyLogic<T extends CustomView>(
   ref.read(interactiveImageProvider.notifier).applyPendingFocusIfAny();
 
   if (hadPending) {
-    final transformationController = ref
+    ref
         .read(interactiveImageProvider.notifier)
-        .transformationController;
-    transformationController.value = Matrix4.identity();
+        .transformationController
+        .value = Matrix4.identity();
   }
 }

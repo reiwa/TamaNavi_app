@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -6,7 +8,6 @@ import 'package:tamanavi_app/models/building_snapshot.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/models/room_finder_models.dart';
 import 'package:tamanavi_app/room_finder/detail_screen.dart';
-import 'package:tamanavi_app/room_finder/entrance_selector.dart';
 import 'package:tamanavi_app/room_finder/search_screen.dart';
 import 'package:tamanavi_app/room_finder/settings_dialog.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
@@ -15,12 +16,15 @@ import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 
 const List<String> kFinderTagOptions = kBuildingTagOptions;
 
-final selectedTagProvider = StateProvider<String>((ref) => kFinderTagOptions.first);
+final selectedTagProvider = StateProvider<String>(
+  (ref) => kFinderTagOptions.first,
+);
 
 final finderSearchQueryProvider = StateProvider<String>((ref) => '');
 
-final tagSearchResultsProvider =
-    FutureProvider<List<BuildingRoomInfo>>((ref) async {
+final tagSearchResultsProvider = FutureProvider<List<BuildingRoomInfo>>((
+  ref,
+) async {
   final selectedTag = ref.watch(selectedTagProvider);
   final rawQuery = ref.watch(finderSearchQueryProvider);
   final trimmedQuery = rawQuery.trim();
@@ -33,7 +37,8 @@ final tagSearchResultsProvider =
     await repo.ensureAllBuildingsLoaded();
   }
 
-  final map = ref.read(buildingRepositoryProvider).asData?.value ??
+  final map =
+      ref.read(buildingRepositoryProvider).asData?.value ??
       const <String, BuildingSnapshot>{};
 
   final results = <BuildingRoomInfo>[];
@@ -89,8 +94,7 @@ class FinderLaunchIntent {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! FinderLaunchIntent) return false;
-    return other.navigateTo == navigateTo &&
-        other.navigateFrom == navigateFrom;
+    return other.navigateTo == navigateTo && other.navigateFrom == navigateFrom;
   }
 
   @override
@@ -116,7 +120,7 @@ class FinderLaunchIntent {
 
 class FinderView extends CustomView {
   const FinderView({super.key, this.initialIntent})
-      : super(mode: CustomViewMode.finder);
+    : super(mode: CustomViewMode.finder);
 
   final FinderLaunchIntent? initialIntent;
 
@@ -129,9 +133,7 @@ class _FinderViewState extends ConsumerState<FinderView>
   FinderLaunchIntent? _pendingIntent;
   bool _firstFrameRendered = false;
   bool _isProcessingIntent = false;
-  ProviderSubscription<AsyncValue<Map<String, BuildingSnapshot>>>?
-      _repositorySubscription;
-  ProviderSubscription<String>? _selectedTagSubscription;
+  String? _selectedEntranceId;
 
   @override
   void initState() {
@@ -141,71 +143,16 @@ class _FinderViewState extends ConsumerState<FinderView>
 
     pageController = PageController();
 
-    _repositorySubscription =
-        ref.listenManual<AsyncValue<Map<String, BuildingSnapshot>>>(
-      buildingRepositoryProvider,
-      (previous, next) {
-        if (!mounted) return;
-        next.whenData((_) => _maybeProcessPendingIntent());
-      },
-    );
-
-    _selectedTagSubscription = ref.listenManual<String>(
-      selectedTagProvider,
-      (previous, next) {
-        if (previous == next) return;
-        ref.read(finderSearchQueryProvider.notifier).state = '';
-      },
-    );
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       _firstFrameRendered = true;
 
       final active = ref.read(activeBuildingProvider);
-      final notifier = ref.read(interactiveImageProvider.notifier);
+      ref
+          .read(interactiveImageProvider.notifier)
+          .handleBuildingChanged(active.id);
 
-      notifier.handleBuildingChanged(active.id);
-
-      ref.listenManual<InteractiveImageState>(interactiveImageProvider, (
-        prev,
-        next,
-      ) {
-        if (!mounted) return;
-        if (next.needsNavigationOnBuild) {
-          ref
-              .read(interactiveImageProvider.notifier)
-              .clearNeedsNavigationOnBuild();
-
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            if (!mounted) return;
-            await Future.delayed(const Duration(milliseconds: 50));
-            if (!mounted) return;
-            await _startNavigation();
-          });
-        }
-      });
-
-      ref.listenManual<InteractiveImageState>(interactiveImageProvider, (
-        prev,
-        next,
-      ) {
-        if (!mounted) return;
-        final activeSnapshot = ref.read(activeBuildingProvider);
-        final correctPageIndex = activeSnapshot.floorCount - next.currentFloor;
-        if (pageController.hasClients) {
-          final current = pageController.page?.round();
-          if (current != correctPageIndex) {
-            pageController.animateToPage(
-              correctPageIndex,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.decelerate,
-            );
-          }
-        }
-      });
-
-      _maybeProcessPendingIntent();
+      await _maybeProcessPendingIntent();
     });
   }
 
@@ -214,15 +161,81 @@ class _FinderViewState extends ConsumerState<FinderView>
     super.didUpdateWidget(oldWidget);
     if (widget.initialIntent != oldWidget.initialIntent) {
       _pendingIntent = widget.initialIntent;
-      _maybeProcessPendingIntent();
+      unawaited(_maybeProcessPendingIntent());
     }
   }
 
-  @override
-  void dispose() {
-    _repositorySubscription?.close();
-    _selectedTagSubscription?.close();
-    super.dispose();
+  void _handleRepositoryChanged(
+    AsyncValue<Map<String, BuildingSnapshot>>? previous,
+    AsyncValue<Map<String, BuildingSnapshot>> next,
+  ) {
+    if (!mounted) return;
+    next.whenData((_) => _maybeProcessPendingIntent());
+  }
+
+  void _handleSelectedTagChanged(String? previous, String next) {
+    if (previous == next) return;
+    ref.read(finderSearchQueryProvider.notifier).state = '';
+  }
+
+  void _handleNavigationRequests(
+    InteractiveImageState? previous,
+    InteractiveImageState next,
+  ) {
+    if (!mounted || !next.needsNavigationOnBuild) {
+      return;
+    }
+
+    ref.read(interactiveImageProvider.notifier).clearNeedsNavigationOnBuild();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
+      await _startNavigation();
+    });
+  }
+
+  Future<void> _handleFloorChange(
+    InteractiveImageState? previous,
+    InteractiveImageState next,
+  ) async {
+    if (!mounted) return;
+    if (previous?.currentFloor == next.currentFloor) {
+      return;
+    }
+
+    final activeSnapshot = ref.read(activeBuildingProvider);
+    final correctPageIndex = activeSnapshot.floorCount - next.currentFloor;
+    if (pageController.hasClients) {
+      final current = pageController.page?.round();
+      if (current != correctPageIndex) {
+        await pageController.animateToPage(
+          correctPageIndex,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.decelerate,
+        );
+      }
+    }
+  }
+
+  void _handleSelectedRoomChanged(
+    InteractiveImageState? previous,
+    InteractiveImageState next,
+  ) {
+    if (!mounted) return;
+    final prevId = previous?.currentBuildingRoomId;
+    final nextId = next.currentBuildingRoomId;
+    if (nextId == null || nextId == prevId) {
+      return;
+    }
+
+    final room = next.selectedRoomInfo?.room;
+    if (room == null) {
+      return;
+    }
+
+    unawaited(_focusOnElement(room));
   }
 
   void _activateRoom(
@@ -230,12 +243,13 @@ class _FinderViewState extends ConsumerState<FinderView>
     bool switchToDetail = false,
     bool autoNavigate = true,
   }) {
-    final img = ref.read(interactiveImageProvider.notifier);
-    img.activateRoom(
-      info,
-      switchToDetail: switchToDetail,
-      autoNavigate: autoNavigate,
-    );
+    ref
+        .read(interactiveImageProvider.notifier)
+        .activateRoom(
+          info,
+          switchToDetail: switchToDetail,
+          autoNavigate: autoNavigate,
+        );
   }
 
   void _returnToSearch() {
@@ -254,13 +268,18 @@ class _FinderViewState extends ConsumerState<FinderView>
     final pageIndex = notifier.syncToBuilding(focusElement: element);
 
     if (pageIndex != null) {
-      if (pageController.hasClients) {
+      final ready = await _waitForPageView();
+      if (!ready) {
+        notifier.applyPendingFocusIfAny();
+        return;
+      }
+      if (_isPageViewReady) {
         await pageController.animateToPage(
           pageIndex,
           duration: const Duration(milliseconds: 500),
           curve: Curves.decelerate,
         );
-        await Future.delayed(const Duration(milliseconds: 550));
+        await Future<void>.delayed(const Duration(milliseconds: 550));
         if (mounted) {
           notifier.applyPendingFocusIfAny();
         }
@@ -270,9 +289,35 @@ class _FinderViewState extends ConsumerState<FinderView>
     }
   }
 
+  bool get _isPageViewReady {
+    if (!pageController.hasClients) return false;
+    try {
+      final positions = pageController.positions;
+      if (positions.isEmpty) {
+        return false;
+      }
+      final position = pageController.position;
+      return position.hasPixels && position.hasContentDimensions;
+    } on Exception {
+      return false;
+    }
+  }
+
+  Future<bool> _waitForPageView() async {
+    if (_isPageViewReady) return true;
+    const attempts = 12;
+    for (var i = 0; i < attempts; i++) {
+      if (!mounted) return false;
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+      if (_isPageViewReady) {
+        return true;
+      }
+    }
+    return _isPageViewReady;
+  }
+
   Future<void> _startNavigation({
     String? startElementId,
-    bool promptForEntranceSelection = false,
   }) async {
     final active = ref.read(activeBuildingProvider);
     final targetElement = _resolveNavigationTarget();
@@ -282,7 +327,9 @@ class _FinderViewState extends ConsumerState<FinderView>
     }
 
     if (targetElement.type == PlaceType.room && mounted) {
-      ref.read(interactiveImageProvider.notifier).activateRoom(
+      ref
+          .read(interactiveImageProvider.notifier)
+          .activateRoom(
             BuildingRoomInfo(
               buildingId: active.id,
               buildingName: active.name,
@@ -292,37 +339,18 @@ class _FinderViewState extends ConsumerState<FinderView>
     }
 
     CachedSData? startNode;
-    if (startElementId != null) {
-      startNode = _findElementById(active, startElementId);
-      if (startNode == null) {
-        _showSnackBar('出発地点が見つかりません: $startElementId');
-        return;
-      }
-    } else {
-      final entrances = active.elements
-          .where((e) => e.type == PlaceType.entrance)
-          .toList();
-      if (entrances.isEmpty) {
-        _showSnackBar('この建物に入口が見つかりません。');
-        return;
-      }
-      if (promptForEntranceSelection && entrances.length > 1) {
-        final selectedEntrance = await showEntranceSelector(
-          context: context,
-          entrances: entrances,
-          initialId: entrances.first.id,
-          onFocus: _focusOnElement,
-        );
-
-        if (!mounted) return;
-        if (selectedEntrance == null) {
-          return;
-        }
-        startNode = selectedEntrance;
-      } else {
-        startNode = entrances.first;
-      }
+    final desiredStartId = startElementId ?? _selectedEntranceId;
+    if (desiredStartId != null) {
+      startNode = _findElementById(active, desiredStartId);
     }
+    startNode ??= _firstEntrance(active);
+
+    if (startNode == null) {
+      _showSnackBar('この建物に入口が見つかりません。');
+      return;
+    }
+
+    _setSelectedEntranceId(startNode.id);
 
     await _focusOnElement(startNode);
 
@@ -340,6 +368,24 @@ class _FinderViewState extends ConsumerState<FinderView>
     if (!ok) {
       _showSnackBar('ルートが見つかりません。');
     }
+  }
+
+  CachedSData? _firstEntrance(BuildingSnapshot snapshot) {
+    for (final element in snapshot.elements) {
+      if (element.type == PlaceType.entrance) {
+        return element;
+      }
+    }
+    return null;
+  }
+
+  void _setSelectedEntranceId(String? id) {
+    if (!mounted || _selectedEntranceId == id) {
+      return;
+    }
+    setState(() {
+      _selectedEntranceId = id;
+    });
   }
 
   Future<void> _maybeProcessPendingIntent() async {
@@ -405,7 +451,7 @@ class _FinderViewState extends ConsumerState<FinderView>
         }
       }
 
-      Future.microtask(() async {
+      await Future.microtask(() async {
         if (!mounted) return;
 
         _activateRoom(
@@ -414,13 +460,11 @@ class _FinderViewState extends ConsumerState<FinderView>
           autoNavigate: false,
         );
 
-        await Future.delayed(const Duration(milliseconds: 50));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
         if (!mounted) return;
 
         if (intent.hasNavigateFrom) {
           await _startNavigation(startElementId: intent.navigateFrom);
-        } else {
-          await _focusOnElement(resolvedTarget.room);
         }
       });
     } finally {
@@ -451,69 +495,130 @@ class _FinderViewState extends ConsumerState<FinderView>
         .syncToBuilding(focusElement: focusElement);
   }
 
+  void _ensureEntranceSelection(List<CachedSData> entrances) {
+    final hasCurrent =
+        _selectedEntranceId != null &&
+        entrances.any((e) => e.id == _selectedEntranceId);
+    final desired = entrances.isEmpty
+        ? null
+        : (hasCurrent ? _selectedEntranceId : entrances.first.id);
+    if (desired == _selectedEntranceId) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _selectedEntranceId = desired;
+      });
+    });
+  }
+
+  void _handleEntranceSelection(CachedSData entrance) {
+    final shouldUpdate = _selectedEntranceId != entrance.id;
+    if (shouldUpdate) {
+      setState(() {
+        _selectedEntranceId = entrance.id;
+      });
+    }
+    unawaited(_focusOnElement(entrance));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, _) {
-        final isSearchMode = ref.watch(
-          interactiveImageProvider.select((s) => s.isSearchMode),
-        );
-        final selectedRoomInfo = ref.watch(
-          interactiveImageProvider.select((s) => s.selectedRoomInfo),
-        );
+    ref
+      ..listen<AsyncValue<Map<String, BuildingSnapshot>>>(
+        buildingRepositoryProvider,
+        _handleRepositoryChanged,
+      )
+      ..listen<String>(
+        selectedTagProvider,
+        _handleSelectedTagChanged,
+      )
+      ..listen<InteractiveImageState>(
+        interactiveImageProvider,
+        _handleNavigationRequests,
+      )
+      ..listen<InteractiveImageState>(
+        interactiveImageProvider,
+        _handleFloorChange,
+      )
+      ..listen<InteractiveImageState>(
+        interactiveImageProvider,
+        _handleSelectedRoomChanged,
+      );
 
-        final shouldShowSearch = isSearchMode || selectedRoomInfo == null;
+    final isSearchMode = ref.watch(
+      interactiveImageProvider.select((s) => s.isSearchMode),
+    );
+    final selectedRoomInfo = ref.watch(
+      interactiveImageProvider.select((s) => s.selectedRoomInfo),
+    );
 
-        final content = shouldShowSearch
-            ? FinderSearchContent(
-                onTagSelected: (tag) {
-                  ref.read(selectedTagProvider.notifier).state = tag;
-                },
-                onRoomTap: (info) {
-                  _activateRoom(info, switchToDetail: true);
-                },
-              )
-            : () {
-                final imageState = ref.watch(interactiveImageProvider);
-                final activeBuilding = ref.watch(activeBuildingProvider);
-                final inSameBuilding = ref.watch(roomsInActiveBuildingProvider);
+    final shouldShowSearch = isSearchMode || selectedRoomInfo == null;
 
-                final hasValue = inSameBuilding.any(
-                  (info) => info.room.id == imageState.currentBuildingRoomId,
+    final content = shouldShowSearch
+        ? FinderSearchContent(
+            onTagSelected: (tag) {
+              ref.read(selectedTagProvider.notifier).state = tag;
+            },
+            onRoomTap: (info) {
+              _activateRoom(info, switchToDetail: true);
+            },
+          )
+        : () {
+            final imageState = ref.watch(interactiveImageProvider);
+            final activeBuilding = ref.watch(activeBuildingProvider);
+            final inSameBuilding = ref.watch(roomsInActiveBuildingProvider);
+            final entrances =
+                activeBuilding.elements
+                    .where((e) => e.type == PlaceType.entrance)
+                    .toList()
+                  ..sort((a, b) {
+                    final aLabel = a.name.isEmpty ? a.id : a.name;
+                    final bLabel = b.name.isEmpty ? b.id : b.name;
+                    return aLabel.compareTo(bLabel);
+                  });
+
+            _ensureEntranceSelection(entrances);
+
+            final hasValue = inSameBuilding.any(
+              (info) => info.room.id == imageState.currentBuildingRoomId,
+            );
+            final dropdownValue = hasValue
+                ? imageState.currentBuildingRoomId
+                : null;
+            final selectedEntranceId = _selectedEntranceId;
+
+            return FinderDetailContent(
+              currentFloor: imageState.currentFloor,
+              dropdownValue: dropdownValue,
+              roomsInBuilding: inSameBuilding,
+              selectedRoomInfo: imageState.selectedRoomInfo,
+              entrances: entrances,
+              selectedEntranceId: selectedEntranceId,
+              onRoomSelected: (value) {
+                if (value == null || inSameBuilding.isEmpty) return;
+                final match = inSameBuilding.firstWhere(
+                  (info) => info.room.id == value,
+                  orElse: () => imageState.selectedRoomInfo!,
                 );
-                final dropdownValue = hasValue
-                    ? imageState.currentBuildingRoomId
-                    : null;
+                _activateRoom(match);
+              },
+              onEntranceSelected: _handleEntranceSelection,
+              onReturnToSearch: _returnToSearch,
+              interactiveImage: buildInteractiveImage(),
+              selectedElementLabel: _selectedElementLabel(activeBuilding),
+              onStartNavigation: _startNavigation,
+              canStartNavigation:
+                  imageState.selectedRoomInfo != null && entrances.isNotEmpty,
+            );
+          }();
 
-                return FinderDetailContent(
-                  currentFloor: imageState.currentFloor,
-                  dropdownValue: dropdownValue,
-                  roomsInBuilding: inSameBuilding,
-                  selectedRoomInfo: imageState.selectedRoomInfo,
-                  onRoomSelected: (value) async {
-                    if (value == null || inSameBuilding.isEmpty) return;
-                    final match = inSameBuilding.firstWhere(
-                      (info) => info.room.id == value,
-                      orElse: () => imageState.selectedRoomInfo!,
-                    );
-                    _activateRoom(match);
-                    await _focusOnElement(match.room);
-                  },
-                  onReturnToSearch: _returnToSearch,
-                  interactiveImage: buildInteractiveImage(),
-                  selectedElementLabel: _selectedElementLabel(activeBuilding),
-                  onStartNavigation: () =>
-                      _startNavigation(promptForEntranceSelection: true),
-                );
-              }();
-
-        return Column(
-          children: [
-            SafeArea(bottom: false, child: _buildHeader(context)),
-            Expanded(child: content),
-          ],
-        );
-      },
+    return Column(
+      children: [
+        SafeArea(bottom: false, child: _buildHeader(context)),
+        Expanded(child: content),
+      ],
     );
   }
 
@@ -531,25 +636,68 @@ class _FinderViewState extends ConsumerState<FinderView>
   }
 
   Widget _buildHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.lightGreen.shade100,
-              borderRadius: BorderRadius.circular(8),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: colorScheme.outlineVariant,
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: colorScheme.primary,
+              ),
+              child: Icon(
+                Icons.navigation_rounded,
+                color: colorScheme.onPrimary,
+              ),
             ),
-          ),
-          const Expanded(child: SizedBox.shrink()),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: '設定',
-            onPressed: () => showFinderSettingsDialog(context),
-          ),
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '玉ナビ',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '埼玉大学のルート案内アプリ',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: '設定',
+              style: IconButton.styleFrom(
+                backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.6,
+                ),
+                foregroundColor: colorScheme.primary,
+              ),
+              onPressed: () => showFinderSettingsDialog(context),
+            ),
+          ],
+        ),
       ),
     );
   }

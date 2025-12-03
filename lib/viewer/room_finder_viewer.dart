@@ -89,42 +89,28 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
             canScroll: () => true,
           )
         : const NeverScrollableScrollPhysics();
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.green.withValues(alpha: 0.45),
-          width: 2,
-        ),
-        borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(12),
-          bottomLeft: Radius.circular(12),
-          bottomRight: Radius.circular(12),
-        ),
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Listener(
-        child: Builder(
-          builder: (context) {
-            final snap = ref.watch(activeBuildingProvider);
-            _ensureActiveBuildingSynced();
+    return Listener(
+      child: Builder(
+        builder: (context) {
+          final snap = ref.watch(activeBuildingProvider);
+          _ensureActiveBuildingSynced();
 
-            return Listener(
-              child: PageView.builder(
-                controller: pageController,
-                scrollBehavior: CustomScrollBehavior(),
-                scrollDirection: Axis.vertical,
-                physics: pagePhysics,
-                itemCount: snap.floorCount,
-                onPageChanged: _handlePageChanged,
-                itemBuilder: (context, pageIndex) {
-                  final floor = snap.floorCount - pageIndex;
+          return Listener(
+            child: PageView.builder(
+              controller: pageController,
+              scrollBehavior: CustomScrollBehavior(),
+              scrollDirection: Axis.vertical,
+              physics: pagePhysics,
+              itemCount: snap.floorCount,
+              onPageChanged: _handlePageChanged,
+              itemBuilder: (context, pageIndex) {
+                final floor = snap.floorCount - pageIndex;
 
-                  return _FloorPageView(self: this, floor: floor);
-                },
-              ),
-            );
-          },
-        ),
+                return _FloorPageView(self: this, floor: floor);
+              },
+            ),
+          );
+        },
       ),
     );
   }

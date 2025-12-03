@@ -77,9 +77,9 @@ class _EditorViewState extends ConsumerState<EditorView>
       return;
     }
 
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
+    final messenger = ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
       const SnackBar(
         content: Text('アップロード中...'),
         duration: Duration(seconds: 15),
@@ -90,16 +90,16 @@ class _EditorViewState extends ConsumerState<EditorView>
       final uploadedId = await notifier.uploadDraftToFirestore();
       await _updateMetadataVersion();
 
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
+      messenger..hideCurrentSnackBar()
+      ..showSnackBar(
         SnackBar(
           content: Text('アップロードが完了しました (ID: $uploadedId)'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
+    } on Exception catch (e) {
+      messenger..hideCurrentSnackBar()
+      ..showSnackBar(
         SnackBar(
           content: Text('アップロード中にエラーが発生しました: $e'),
           backgroundColor: Colors.red,
@@ -160,9 +160,6 @@ class _EditorViewState extends ConsumerState<EditorView>
       _ensureDraftIsActive(checkAgain: false);
 
       final snap = ref.read(activeBuildingProvider);
-      final notifier = ref.read(interactiveImageProvider.notifier);
-
-      notifier.handleBuildingChanged(snap.id);
 
       ref.read(activeRouteProvider.notifier).clearActiveRouteNodes();
 
@@ -173,55 +170,6 @@ class _EditorViewState extends ConsumerState<EditorView>
       pageController = PageController(initialPage: snap.floorCount - 1);
 
       isPageScrollable = canSwipeFloors;
-      ref.listenManual<InteractiveImageState>(interactiveImageProvider, (
-        prev,
-        next,
-      ) {
-        if (!mounted) return;
-        if (next.selectedElement == null &&
-            prev?.tapPosition != next.tapPosition) {
-          final p = next.tapPosition;
-          if (p == null) {
-            _nameController.clear();
-            _xController.clear();
-            _yController.clear();
-          } else {
-            _nameController.text = '新しい要素';
-            final imageDimensions =
-                next.imageDimensionsByFloor[next.currentFloor];
-
-            if (imageDimensions != null &&
-                imageDimensions.width > 0 &&
-                imageDimensions.height > 0) {
-              final absolutePos = Offset(
-                p.dx * imageDimensions.width,
-                p.dy * imageDimensions.height,
-              );
-              _xController.text = absolutePos.dx.toStringAsFixed(0);
-              _yController.text = absolutePos.dy.toStringAsFixed(0);
-            } else {
-              _xController.text = p.dx.toStringAsFixed(0);
-              _yController.text = p.dy.toStringAsFixed(0);
-            }
-          }
-        }
-
-        if (prev?.currentFloor != next.currentFloor) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-
-            ref
-                .read(interactiveImageProvider.notifier)
-                .applyPendingFocusIfAny();
-
-            if (next.pendingFocusElement != null) {
-              ref
-                  .read(interactiveImageProvider.notifier)
-                  .updateCurrentZoomScale();
-            }
-          });
-        }
-      });
     });
   }
 
@@ -229,9 +177,8 @@ class _EditorViewState extends ConsumerState<EditorView>
   void dispose() {
     _xController.removeListener(_updateTapPositionFromTextFields);
     _yController.removeListener(_updateTapPositionFromTextFields);
-    _nameController.removeListener(_updateNameFromTextField);
-
-    _nameController.dispose();
+    _nameController..removeListener(_updateNameFromTextField)
+    ..dispose();
     _xController.dispose();
     _yController.dispose();
 
@@ -273,6 +220,52 @@ class _EditorViewState extends ConsumerState<EditorView>
 
   void _toggleConnectionMode() {
     ref.read(interactiveImageProvider.notifier).toggleConnectionMode();
+  }
+
+  void _handleInteractiveImageStateChange(
+    InteractiveImageState? previous,
+    InteractiveImageState next,
+  ) {
+    if (!mounted) return;
+
+    if (next.selectedElement == null &&
+        previous?.tapPosition != next.tapPosition) {
+      final p = next.tapPosition;
+      if (p == null) {
+        _nameController.clear();
+        _xController.clear();
+        _yController.clear();
+      } else {
+        _nameController.text = '新しい要素';
+        final imageDimensions = next.imageDimensionsByFloor[next.currentFloor];
+
+        if (imageDimensions != null &&
+            imageDimensions.width > 0 &&
+            imageDimensions.height > 0) {
+          final absolutePos = Offset(
+            p.dx * imageDimensions.width,
+            p.dy * imageDimensions.height,
+          );
+          _xController.text = absolutePos.dx.toStringAsFixed(0);
+          _yController.text = absolutePos.dy.toStringAsFixed(0);
+        } else {
+          _xController.text = p.dx.toStringAsFixed(0);
+          _yController.text = p.dy.toStringAsFixed(0);
+        }
+      }
+    }
+
+    if (previous?.currentFloor != next.currentFloor) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+
+        ref.read(interactiveImageProvider.notifier).applyPendingFocusIfAny();
+
+        if (next.pendingFocusElement != null) {
+          ref.read(interactiveImageProvider.notifier).updateCurrentZoomScale();
+        }
+      });
+    }
   }
 
   Future<void> _openSettingsDialog() async {
@@ -397,6 +390,11 @@ class _EditorViewState extends ConsumerState<EditorView>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<InteractiveImageState>(
+      interactiveImageProvider,
+      _handleInteractiveImageStateChange,
+    );
+
     final activeSnapshot = ref.watch(activeBuildingProvider);
     if (activeSnapshot.id != kDraftBuildingId) {
       _ensureDraftIsActive();

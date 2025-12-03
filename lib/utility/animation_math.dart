@@ -25,14 +25,16 @@ double elasticEaseOut(double t, {double amplitude = 1.0, double period = 0.4}) {
   final p = _getSafePeriod(period);
 
   final double s;
+  final double effectiveAmplitude;
   if (amplitude < 1.0) {
-    amplitude = 1.0;
+    effectiveAmplitude = 1.0;
     s = p / 4.0;
   } else {
+    effectiveAmplitude = amplitude;
     s = p / (2.0 * math.pi) * math.asin(1.0 / amplitude);
   }
 
-  return amplitude *
+  return effectiveAmplitude *
           math.pow(2, -10 * t) *
           math.sin((t - s) * (math.pi * 2.0) / p) +
       1.0;

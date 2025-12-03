@@ -167,8 +167,8 @@ class _SettingsDialogState extends State<SettingsDialog> {
                   if (value == null || value.trim().isEmpty) {
                     return '識別名を入力してください';
                   }
-                  if (value.contains(RegExp(r'[\s_]'))) {
-                    return 'スペースやアンダースコア(_)は含めないでください';
+                  if (value.contains(RegExp(r'[\s]'))) {
+                    return 'スペースは含めないでください';
                   }
                   return null;
                 },

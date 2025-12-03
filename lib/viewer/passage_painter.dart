@@ -20,15 +20,33 @@ class ElevatorVerticalLink {
   final String? message;
 }
 
+class _NavigationEdgePalette {
+  const _NavigationEdgePalette._();
+
+  static const Color base = Color(0xFF0E9F6E);
+}
+
 class PassagePainter extends CustomPainter {
   PassagePainter({
     required this.edges,
-    required this.controller, required this.viewerSize, required this.imageDimensions, this.previewEdge,
+    required this.controller,
+    required this.viewerSize,
+    required this.imageDimensions,
+    this.previewEdge,
     this.connectingType,
     this.routeSegments = const [],
     this.elevatorLinks = const [],
     this.hideBaseEdges = false,
-  }) : super(repaint: controller);
+    this.routePulse,
+    this.elements = const [],
+    this.selectedElement,
+    this.labelStyle,
+  }) : super(
+          repaint: Listenable.merge([
+            controller,
+            ?routePulse,
+          ]),
+        );
 
   final List<Edge> edges;
   final Edge? previewEdge;
@@ -39,6 +57,10 @@ class PassagePainter extends CustomPainter {
   final List<ElevatorVerticalLink> elevatorLinks;
   final Size imageDimensions;
   final bool hideBaseEdges;
+  final Animation<double>? routePulse;
+  final List<CachedSData> elements;
+  final CachedSData? selectedElement;
+  final TextStyle? labelStyle;
 
   Offset _toAbsolute(Offset relative) {
     if (imageDimensions.width == 0 || imageDimensions.height == 0) {
@@ -95,6 +117,131 @@ class PassagePainter extends CustomPainter {
     if (elevatorLinks.isNotEmpty) {
       _paintElevatorLinks(canvas);
     }
+    _paintNodeNames(canvas);
+  }
+
+  void _paintNodeNames(Canvas canvas) {
+    final effectiveScale = controller.value.getMaxScaleOnAxis().clamp(
+      1.0,
+      10.0,
+    );
+    final occupiedRects = <Rect>[];
+
+    if (selectedElement != null) {
+      final absolutePos = _toAbsolute(selectedElement!.position);
+      final pointerSize = 12 / sqrt(effectiveScale);
+      final iconSize = pointerSize * 3.5;
+      final textOffset = Offset(0, iconSize * 0.35);
+
+      final rect = _drawLabel(
+        canvas,
+        selectedElement!.name,
+        absolutePos + textOffset,
+        effectiveScale,
+        isSelected: true,
+      );
+      occupiedRects.add(rect);
+    }
+
+    for (final element in elements) {
+      if (element.type != PlaceType.room) continue;
+      if (element.id == selectedElement?.id) continue;
+
+      if (element.name.length > effectiveScale * 6) continue;
+
+      final displayName = element.name;
+      final absolutePos = _toAbsolute(element.position);
+
+      final textSpan = TextSpan(
+        text: displayName,
+        style: (labelStyle ?? const TextStyle()).copyWith(
+          fontSize: 10.0 / effectiveScale,
+          fontWeight: FontWeight.w500,
+        ),
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final width = textPainter.width;
+      final height = textPainter.height;
+      final rect = Rect.fromCenter(
+        center: absolutePos,
+        width: width,
+        height: height,
+      );
+
+      var overlaps = false;
+      for (final occupied in occupiedRects) {
+        if (rect.overlaps(occupied)) {
+          overlaps = true;
+          break;
+        }
+      }
+
+      if (!overlaps) {
+        _drawLabel(
+          canvas,
+          displayName,
+          absolutePos,
+          effectiveScale,
+          isSelected: false,
+        );
+        occupiedRects.add(rect);
+      }
+    }
+  }
+
+  Rect _drawLabel(
+    Canvas canvas,
+    String text,
+    Offset center,
+    double scale, {
+    required bool isSelected,
+  }) {
+    final fontSize = (isSelected ? 14.0 : 10.0) / scale;
+    final color = isSelected
+        ? Colors.black87
+        : Colors.black.withValues(alpha: 0.75);
+    final fontWeight = isSelected ? FontWeight.bold : FontWeight.w500;
+
+    final style = (labelStyle ?? const TextStyle()).copyWith(
+      color: color,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+    );
+
+    final span = TextSpan(text: text, style: style);
+    final textPainter = TextPainter(
+      text: span,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout();
+
+    final offset = center - Offset(
+      textPainter.width / 2,
+      textPainter.height / 2,
+    );
+
+    final strokeSpan = TextSpan(
+      text: text,
+      style: style.copyWith(
+        foreground: Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0 / scale
+          ..color = Colors.white.withValues(alpha: 0.8),
+      ),
+    );
+    TextPainter(
+      text: strokeSpan,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout()
+    ..paint(canvas, offset);
+    textPainter.paint(canvas, offset);
+
+    return offset & textPainter.size;
   }
 
   void _paintRouteSegments(Canvas canvas) {
@@ -102,71 +249,108 @@ class PassagePainter extends CustomPainter {
       1.0,
       10.0,
     );
-    final chevronPaint = Paint()
-      ..color = Colors.redAccent
-      ..strokeWidth = 3.6 / effectiveScale
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+    final animationPhase = routePulse?.value ?? 0.0;
+    final pulseWave = routePulse == null
+        ? 0.0
+        : (sin(2 * pi * animationPhase) + 1) / 2;
+    final opacityFactor = routePulse == null ? 1.0 : 0.8 + 0.2 * pulseWave;
+    final widthFactor = routePulse == null ? 1.0 : 0.96 + 0.04 * pulseWave;
 
     for (final segment in routeSegments) {
-      final absoluteSegment = RouteVisualSegment(
-        start: _toAbsolute(segment.start),
-        end: _toAbsolute(segment.end),
+      final baseColor = _routeColorForSegment(segment);
+      final pulsedColor = baseColor.withValues(alpha: 
+        (baseColor.a * opacityFactor).clamp(0.0, 1.0),
       );
+      final segmentPaint = Paint()
+        ..color = pulsedColor
+        ..strokeWidth =
+            _routeStrokeWidth(segment, widthFactor) / effectiveScale
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+
       _drawChevronSequence(
         canvas,
-        absoluteSegment,
-        chevronPaint,
+        _toAbsolute(segment.start),
+        _toAbsolute(segment.end),
+        segmentPaint,
         effectiveScale,
+        animationPhase,
       );
     }
   }
 
   void _drawChevronSequence(
     Canvas canvas,
-    RouteVisualSegment segment,
+    Offset start,
+    Offset end,
     Paint chevronPaint,
     double effectiveScale,
+    double animationPhase,
   ) {
-    final delta = segment.end - segment.start;
+    final delta = end - start;
     final length = delta.distance;
     if (length <= 0.0001) return;
 
     final direction = delta / length;
     final perpendicular = Offset(-direction.dy, direction.dx);
-    final spacing = 16.0 / effectiveScale;
-    final depth = 12.0 / effectiveScale;
-    final halfWidth = 9.0 / effectiveScale;
-    final double tailPadding = max(depth * 1.0, 0.0 / effectiveScale);
+    final spacing = 20.0 / effectiveScale;
+    final depth = 9.0 / effectiveScale;
+    final halfWidth = 7.0 / effectiveScale;
+    final double tailPadding = max(depth * 0.2, 0);
 
-    final positions = <double>[];
-    var walk = spacing * 0.6;
-    while (walk < length - tailPadding) {
-      positions.add(walk);
+    final shift = (spacing * animationPhase) % spacing;
+    var walk = shift;
+
+    final originalColor = chevronPaint.color;
+    final fadeLength = 28.0 / effectiveScale;
+
+    while (walk <= length - tailPadding) {
+      var opacity = 1.0;
+
+      if (walk < fadeLength) {
+        opacity *= walk / fadeLength;
+      }
+
+      if (walk > length - fadeLength) {
+        opacity *= (length - walk) / fadeLength;
+      }
+
+      opacity = opacity.clamp(0.0, 1.0);
+
+      if (opacity > 0.01) {
+        chevronPaint.color = originalColor.withValues(
+          alpha: originalColor.a * opacity,
+        );
+
+        final tip = start + direction * walk;
+        _drawChevron(
+          canvas,
+          tip,
+          direction,
+          perpendicular,
+          depth,
+          halfWidth,
+          chevronPaint,
+        );
+      }
+
       walk += spacing;
     }
+    chevronPaint.color = originalColor;
+  }
 
-    final finalPosition = length - tailPadding;
-    if (finalPosition > depth &&
-        (positions.isEmpty ||
-            (finalPosition - positions.last) > (spacing * 0.4))) {
-      positions.add(finalPosition);
-    } else if (positions.isEmpty) {
-      positions.add(length / 2);
-    }
+  Color _routeColorForSegment(RouteVisualSegment segment) {
+    return _NavigationEdgePalette.base.withValues(alpha: 0.85);
+  }
 
-    for (final position in positions) {
-      final tip = segment.start + direction * position;
-      _drawChevron(
-        canvas,
-        tip,
-        direction,
-        perpendicular,
-        depth,
-        halfWidth,
-        chevronPaint,
-      );
+  double _routeStrokeWidth(RouteVisualSegment segment, double widthFactor) {
+    if (segment.touchesEntrance) {
+      return 4.4 * widthFactor;
     }
+    if (segment.touchesElevator) {
+      return 3 * widthFactor;
+    }
+    return 3.6 * widthFactor;
   }
 
   void _drawChevron(
@@ -181,8 +365,9 @@ class PassagePainter extends CustomPainter {
     final base = tip - direction * depth;
     final left = base + perpendicular * halfWidth;
     final right = base - perpendicular * halfWidth;
-    canvas.drawLine(tip, left, paint);
-    canvas.drawLine(tip, right, paint);
+    canvas
+      ..drawLine(tip, left, paint)
+      ..drawLine(tip, right, paint);
   }
 
   Path _dashPath(Offset start, Offset end, double dashWidth, double dashSpace) {
@@ -207,14 +392,15 @@ class PassagePainter extends CustomPainter {
       final dashStart = start + (end - start) * (i * fullDash / totalLength);
       final dashEnd =
           start + (end - start) * ((i * fullDash + dashWidth) / totalLength);
-      path.moveTo(dashStart.dx, dashStart.dy);
-      path.lineTo(dashEnd.dx, dashEnd.dy);
+      path
+        ..moveTo(dashStart.dx, dashStart.dy)
+        ..lineTo(dashEnd.dx, dashEnd.dy);
     }
     return path;
   }
 
   void _paintElevatorLinks(Canvas canvas) {
-    const baseLength = 60;
+    const baseLength = 50;
     final effectiveScale = controller.value.getMaxScaleOnAxis().clamp(
       1.0,
       10.0,
@@ -223,11 +409,8 @@ class PassagePainter extends CustomPainter {
       final absoluteOrigin = _toAbsolute(link.origin);
       final direction = link.isUpward ? -1.0 : 1.0;
       final arrowLength = baseLength / effectiveScale;
-      final endPoint =
-          absoluteOrigin + Offset(0, arrowLength * direction);
-      final arrowColorBase = link.highlight
-          ? Colors.orangeAccent
-          : link.color;
+      final endPoint = absoluteOrigin + Offset(0, arrowLength * direction);
+      final arrowColorBase = link.highlight ? Colors.orangeAccent : link.color;
       final shaftPaint = Paint()
         ..color = arrowColorBase.withValues(alpha: link.highlight ? 1.0 : 0.4)
         ..strokeWidth = 3.2 / effectiveScale
@@ -256,7 +439,7 @@ class PassagePainter extends CustomPainter {
             text: link.message,
             style: TextStyle(
               color: link.highlight ? shaftPaint.color : Colors.black87,
-              fontSize: 10.0 / effectiveScale,
+              fontSize: 12.0 / effectiveScale,
               fontWeight: link.highlight ? FontWeight.bold : FontWeight.w600,
             ),
           ),
@@ -269,6 +452,23 @@ class PassagePainter extends CustomPainter {
               6.0 / effectiveScale,
               direction == -1.0 ? -textPainter.height : headSize * 0.5,
             );
+
+        final strokeSpan = TextSpan(
+          text: link.message,
+          style: TextStyle(
+            fontSize: 12.0 / effectiveScale,
+            fontWeight: link.highlight ? FontWeight.bold : FontWeight.w600,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.0 / effectiveScale
+              ..color = Colors.white.withValues(alpha: 0.8),
+          ),
+        );
+        TextPainter(
+          text: strokeSpan,
+          textDirection: TextDirection.ltr,
+        )..layout()
+        ..paint(canvas, labelOffset);
         textPainter.paint(canvas, labelOffset);
       }
     }
@@ -312,6 +512,7 @@ class PassagePainter extends CustomPainter {
       }
     }
     if (old.hideBaseEdges != hideBaseEdges) return true;
+    if (old.routePulse != routePulse) return true;
     return false;
   }
 }

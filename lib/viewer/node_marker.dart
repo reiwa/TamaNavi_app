@@ -6,7 +6,18 @@ import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 
 class NodeMarker extends StatefulWidget {
   const NodeMarker({
-    required this.data, required this.isSelected, required this.pointerSize, required this.color, required this.enableDrag, required this.isConnecting, required this.onTap, required this.onDragStart, required this.onDragUpdate, required this.onDragEnd, required this.imageDimensions, super.key,
+    required this.data,
+    required this.isSelected,
+    required this.pointerSize,
+    required this.color,
+    required this.enableDrag,
+    required this.isConnecting,
+    required this.onTap,
+    required this.onDragStart,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+    required this.imageDimensions,
+    super.key,
   });
 
   final CachedSData data;
@@ -78,7 +89,6 @@ class _NodeMarkerState extends State<NodeMarker> {
         },
         onScaleUpdate: (details) {
           if (!_canDrag || !_isDragging) return;
-          // Allow slight noise in the scale value while dragging.
           if ((details.scale - 1.0).abs() > 0.02) return;
 
           final relativeDelta = Offset(
@@ -124,17 +134,32 @@ List<Widget> buildNodeMarkers({
   required double pointerSize,
   required List<CachedSData> relevantElements,
   required Set<String> routeNodeIds,
+  required CachedSData? selectedElement,
+  required bool isConnecting,
+  required bool isDragging,
   required WidgetRef ref,
   required Size imageDimensions,
 }) {
-  final imageState = ref.watch(interactiveImageProvider);
   final notifier = ref.read(interactiveImageProvider.notifier);
   final hasActiveRoute = routeNodeIds.isNotEmpty;
+  final isFinderMode = self.widget.mode == CustomViewMode.finder;
+  final colorScheme = Theme.of(context).colorScheme;
 
   final markers = <Widget>[];
   for (final sData in relevantElements) {
-    final isSelected = imageState.selectedElement?.id == sData.id;
+    final isSelected = selectedElement?.id == sData.id;
     final isRouteNode = routeNodeIds.contains(sData.id);
+
+    final entranceOnRoute =
+        isFinderMode && isRouteNode && sData.type == PlaceType.entrance;
+    final elevatorOnRoute =
+        isFinderMode && isRouteNode && sData.type == PlaceType.elevator;
+
+    final shouldHideInFinder =
+        isFinderMode && !isSelected && !entranceOnRoute && !elevatorOnRoute;
+    if (shouldHideInFinder) {
+      continue;
+    }
 
     if (hasActiveRoute &&
         isRouteNode &&
@@ -144,26 +169,35 @@ List<Widget> buildNodeMarkers({
     }
 
     final baseColor = sData.type.color;
-    final shouldDim = hasActiveRoute && !isRouteNode && !isSelected;
-    final color = shouldDim
+    final shouldDim =
+        !isFinderMode && hasActiveRoute && !isRouteNode && !isSelected;
+    var color = shouldDim
         ? _dimColorForType(baseColor, sData.type)
         : baseColor;
+
+    if (isFinderMode && !isSelected) {
+      if (entranceOnRoute) {
+        color = colorScheme.secondary.withValues(alpha: 0.95);
+      } else if (elevatorOnRoute) {
+        color = colorScheme.primary.withValues(alpha: 0.4);
+      }
+    }
 
     markers.add(
       NodeMarker(
         key: ValueKey('${floor}_${sData.id}'),
-        data: isSelected && imageState.selectedElement != null
-            ? imageState.selectedElement!
+        data: isSelected && selectedElement != null
+            ? selectedElement
             : sData,
         isSelected: isSelected,
         pointerSize: pointerSize,
         color: color,
         enableDrag: self.enableElementDrag,
-        isConnecting: imageState.isConnecting,
+        isConnecting: isConnecting,
         imageDimensions: imageDimensions,
         onTap: () => self.handleMarkerTap(sData, isSelected),
         onDragStart: () {
-          if (!imageState.isDragging) {
+          if (!isDragging) {
             notifier.setDragging(true);
           }
         },
@@ -180,14 +214,9 @@ Color _dimColorForType(Color baseColor, PlaceType type) {
   const defaultAlpha = 0.5;
   const subduedPassageAlpha = 0.25;
 
-  var alpha = defaultAlpha;
-  switch (type) {
-    case PlaceType.passage:
-    case PlaceType.elevator:
-      alpha = subduedPassageAlpha;
-    default:
-      alpha = defaultAlpha;
-  }
+  final alpha = (type == PlaceType.passage || type == PlaceType.elevator)
+      ? subduedPassageAlpha
+      : defaultAlpha;
 
   return baseColor.withValues(alpha: alpha);
 }

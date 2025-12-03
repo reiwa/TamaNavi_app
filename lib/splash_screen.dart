@@ -5,7 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:tamanavi_app/utility/animation_math.dart';
 
 Future<void> preloadSvgs(List<String> assetPaths) async {
-  final futures = <Future>[];
+  final futures = <Future<ByteData>>[];
   for (final path in assetPaths) {
     final loader = SvgAssetLoader(path);
 
@@ -14,7 +14,7 @@ Future<void> preloadSvgs(List<String> assetPaths) async {
         try {
           final data = await loader.loadBytes(null);
           return data;
-        } catch (e) {
+        } on Exception catch (e) {
           debugPrint('Failed to preload SVG $path: $e');
           return ByteData(0);
         }
@@ -251,13 +251,13 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
       ),
     ]).animate(_controller);
 
-    _controller.addStatusListener((status) {
+    _controller..addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         widget.onAnimationComplete();
       }
-    });
+    })
 
-    _controller.forward();
+    ..forward();
   }
 
   @override

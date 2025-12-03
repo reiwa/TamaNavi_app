@@ -261,8 +261,8 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
   }) async {
     final elementsQuery = await docRef.collection('elements').get();
     final elementsList = elementsQuery.docs.map((elDoc) {
-      final data = elDoc.data();
-      data.putIfAbsent('id', () => elDoc.id);
+      final data = elDoc.data()
+      ..putIfAbsent('id', () => elDoc.id);
       return data;
     }).toList();
 
@@ -327,9 +327,9 @@ class BuildingRepository extends AsyncNotifier<Map<String, BuildingSnapshot>> {
     final buildingDocRef = _firestore.collection('buildings').doc(snapshot.id);
     final elementsCollectionRef = buildingDocRef.collection('elements');
 
-    final batch = _firestore.batch();
+    final batch = _firestore.batch()
 
-    batch.set(buildingDocRef, snapshot.toJson());
+    ..set(buildingDocRef, snapshot.toJson());
 
     final oldElementsQuery = await elementsCollectionRef.get();
     final oldElementIds = oldElementsQuery.docs.map((doc) => doc.id).toSet();
@@ -464,7 +464,7 @@ class FloorImagePrefetchNotifier extends Notifier<Set<FloorImageKey>> {
 
       final nextState = Set<FloorImageKey>.from(state)..add(normalizedKey);
       state = nextState;
-    } catch (_) {
+    } on Exception catch (_) {
       _failed.add(normalizedKey);
     } finally {
       _inFlight.remove(normalizedKey);
@@ -595,8 +595,8 @@ final buildingRoomInfosProvider = Provider<List<BuildingRoomInfo>>((ref) {
 final sortedBuildingRoomInfosProvider = Provider<List<BuildingRoomInfo>>((ref) {
   final rooms = ref.watch(buildingRoomInfosProvider);
 
-  final listToSort = List<BuildingRoomInfo>.from(rooms);
-  listToSort.sort((a, b) {
+  final listToSort = List<BuildingRoomInfo>.from(rooms)
+  ..sort((a, b) {
     final buildingCompare = a.buildingName.compareTo(b.buildingName);
     if (buildingCompare != 0) return buildingCompare;
     final aName = a.room.name.isEmpty ? a.room.id : a.room.name;

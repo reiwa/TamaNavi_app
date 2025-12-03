@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,9 +14,30 @@ import 'package:tamanavi_app/viewer/passage_painter.dart';
 import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 import 'package:uuid/uuid.dart';
 
+typedef _InteractionOverlayState = ({
+  Offset? tapPosition,
+  CachedSData? selectedElement,
+  bool isConnecting,
+  bool isDragging,
+  CachedSData? connectingStart,
+  Offset? previewPosition,
+  PlaceType currentType,
+});
+
 class InteractiveLayer extends StatelessWidget {
   const InteractiveLayer({
-    required this.self, required this.floor, required this.imageUrl, required this.viewerSize, required this.relevantElements, required this.routeNodeIds, required this.routeVisualSegments, required this.elevatorLinks, required this.passageEdges, required this.hasActiveRoute, required this.ref, super.key,
+    required this.self,
+    required this.floor,
+    required this.imageUrl,
+    required this.viewerSize,
+    required this.relevantElements,
+    required this.routeNodeIds,
+    required this.routeVisualSegments,
+    required this.elevatorLinks,
+    required this.passageEdges,
+    required this.hasActiveRoute,
+    required this.ref,
+    super.key,
     this.previewEdge,
   });
 
@@ -38,66 +60,69 @@ class InteractiveLayer extends StatelessWidget {
         .read(interactiveImageProvider.notifier)
         .transformationController;
     var cachedScale = transformationController.value.getMaxScaleOnAxis();
-    return Stack(
-      children: [
-        IgnorePointer(
-          ignoring: self.canSwipeFloors,
-          child: InteractiveViewer(
-            transformationController: transformationController,
-            minScale: self.minScale,
-            maxScale: self.maxScale,
-            boundaryMargin: const EdgeInsets.all(200),
-            onInteractionStart: (_) {
-              cachedScale = transformationController.value.getMaxScaleOnAxis();
-            },
-            onInteractionEnd: (_) {
-              if (transformationController.value.getMaxScaleOnAxis() <= 1.05 &&
-                  cachedScale -
-                          transformationController.value.getMaxScaleOnAxis() >
-                      0) {
-                transformationController.value = Matrix4.identity();
-                ref
-                    .read(interactiveImageProvider.notifier)
-                    .updateCurrentZoomScale();
-              }
-            },
-            child: _InteractiveContent(
-              self: self,
-              floor: floor,
-              imageUrl: imageUrl,
-              viewerSize: viewerSize,
-              relevantElements: relevantElements,
-              routeNodeIds: routeNodeIds,
-              routeVisualSegments: routeVisualSegments,
-              elevatorLinks: elevatorLinks,
-              passageEdges: passageEdges,
-              previewEdge: previewEdge,
-              hasActiveRoute: hasActiveRoute,
-              ref: ref,
-            ),
-          ),
-        ),
-
-        if (isDesktopOrElse)
-          Positioned(
-            right: 10,
-            bottom: 10,
-            child: IconButton(
-              icon: Icon(
-                transformationController.value.getMaxScaleOnAxis() <= 1.05
-                    ? Icons.zoom_out_map
-                    : Icons.zoom_in_map,
-              ),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white.withValues(alpha: 0.7),
-                foregroundColor: Colors.black87,
-              ),
-              onPressed: () {
-                ref.read(interactiveImageProvider.notifier).toggleZoom();
+    return RepaintBoundary(
+      child: Stack(
+        children: [
+          IgnorePointer(
+            ignoring: self.canSwipeFloors,
+            child: InteractiveViewer(
+              transformationController: transformationController,
+              minScale: self.minScale,
+              maxScale: self.maxScale,
+              boundaryMargin: const EdgeInsets.all(200),
+              onInteractionStart: (_) {
+                cachedScale =
+                    transformationController.value.getMaxScaleOnAxis();
               },
+              onInteractionEnd: (_) {
+                if (transformationController.value.getMaxScaleOnAxis() <=
+                        1.05 &&
+                    cachedScale -
+                            transformationController.value.getMaxScaleOnAxis() >
+                        0) {
+                  transformationController.value = Matrix4.identity();
+                  ref
+                      .read(interactiveImageProvider.notifier)
+                      .updateCurrentZoomScale();
+                }
+              },
+              child: _InteractiveContent(
+                self: self,
+                floor: floor,
+                imageUrl: imageUrl,
+                viewerSize: viewerSize,
+                relevantElements: relevantElements,
+                routeNodeIds: routeNodeIds,
+                routeVisualSegments: routeVisualSegments,
+                elevatorLinks: elevatorLinks,
+                passageEdges: passageEdges,
+                previewEdge: previewEdge,
+                hasActiveRoute: hasActiveRoute,
+                ref: ref,
+              ),
             ),
           ),
-      ],
+          if (isDesktopOrElse)
+            Positioned(
+              right: 10,
+              bottom: 10,
+              child: IconButton(
+                icon: Icon(
+                  transformationController.value.getMaxScaleOnAxis() <= 1.05
+                      ? Icons.zoom_out_map
+                      : Icons.zoom_in_map,
+                ),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.7),
+                  foregroundColor: Colors.black87,
+                ),
+                onPressed: () {
+                  ref.read(interactiveImageProvider.notifier).toggleZoom();
+                },
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -113,7 +138,9 @@ class _InteractiveContent extends ConsumerStatefulWidget {
     required this.routeVisualSegments,
     required this.elevatorLinks,
     required this.passageEdges,
-    required this.hasActiveRoute, required this.ref, this.previewEdge,
+    required this.hasActiveRoute,
+    required this.ref,
+    this.previewEdge,
   });
 
   final InteractiveImageMixin self;
@@ -135,10 +162,16 @@ class _InteractiveContent extends ConsumerStatefulWidget {
 }
 
 class _InteractiveContentState extends ConsumerState<_InteractiveContent>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late AnimationController _iconController;
   late Animation<double> _iconAnimation;
-  ProviderSubscription<InteractiveImageState>? _imageStateSubscription;
+  late final AnimationController _routePulseController;
+  late final ProviderSubscription<InteractiveImageState>
+      _imageStateSubscription;
+  ProviderSubscription<AsyncValue<SvgPayload>>? _svgPayloadSubscription;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -151,42 +184,79 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       parent: _iconController,
       curve: Curves.elasticOut,
     );
+    _routePulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+    _syncRoutePulseState();
 
-    _subscribeToImageState();
+    _imageStateSubscription = ref.listenManual<InteractiveImageState>(
+      interactiveImageProvider,
+      _onImageStateChange,
+    );
+    _listenToSvgPayload(widget.imageUrl);
 
     if (widget.self.showSelectedPin) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         final currentSelected = ref
             .read(interactiveImageProvider)
             .selectedElement;
         if (currentSelected != null && currentSelected.floor == widget.floor) {
-          _iconController.forward(from: 0);
+          await _iconController.forward(from: 0);
         }
       });
     }
   }
 
-  @override
-  void didUpdateWidget(_InteractiveContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.floor != widget.floor) {
-      _subscribeToImageState();
-    }
-  }
-
-  void _subscribeToImageState() {
-    _imageStateSubscription?.close();
-    _imageStateSubscription = ref.listenManual<InteractiveImageState>(
-      interactiveImageProvider,
-      _onImageStateChange,
+  void _listenToSvgPayload(String imageUrl) {
+    _svgPayloadSubscription?.close();
+    _svgPayloadSubscription = ref.listenManual<AsyncValue<SvgPayload>>(
+      svgPayloadProvider(imageUrl),
+      (_, next) {
+        next.whenData((payload) {
+          if (!mounted) return;
+          ref
+              .read(interactiveImageProvider.notifier)
+              .setImageDimensions(widget.floor, payload.size);
+        });
+      },
+      fireImmediately: true,
     );
   }
 
-  void _onImageStateChange(
+  bool get _shouldAnimateRoute =>
+      widget.hasActiveRoute && widget.routeVisualSegments.isNotEmpty;
+
+  void _syncRoutePulseState() {
+    if (_shouldAnimateRoute) {
+      if (!_routePulseController.isAnimating) {
+        unawaited(_routePulseController.repeat());
+      }
+    } else if (_routePulseController.isAnimating) {
+      _routePulseController..stop()
+      ..value = 0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _InteractiveContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.hasActiveRoute != widget.hasActiveRoute ||
+        oldWidget.routeVisualSegments.length !=
+            widget.routeVisualSegments.length) {
+      _syncRoutePulseState();
+    }
+    if (oldWidget.imageUrl != widget.imageUrl ||
+        oldWidget.floor != widget.floor) {
+      _listenToSvgPayload(widget.imageUrl);
+    }
+  }
+
+  Future<void> _onImageStateChange(
     InteractiveImageState? previous,
     InteractiveImageState next,
-  ) {
+  ) async {
     if (!widget.self.showSelectedPin) {
       if (_iconController.status != AnimationStatus.dismissed) {
         _iconController.reset();
@@ -197,7 +267,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     final isSelected = next.selectedElement != null;
 
     if (!wasSelected && isSelected) {
-      _iconController.forward(from: 0);
+      await _iconController.forward(from: 0);
     } else if (wasSelected && !isSelected) {
       _iconController.reset();
     }
@@ -205,20 +275,30 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
 
   @override
   void dispose() {
-    _imageStateSubscription?.close();
+    _imageStateSubscription.close();
+    _svgPayloadSubscription?.close();
     _iconController.dispose();
+    _routePulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(svgPayloadProvider(widget.imageUrl), (previous, next) {
-      next.whenData((payload) {
-        ref
-            .read(interactiveImageProvider.notifier)
-            .setImageDimensions(widget.floor, payload.size);
-      });
-    });
+    super.build(context);
+
+    final _InteractionOverlayState overlayState = ref.watch(
+      interactiveImageProvider.select(
+        (s) => (
+          tapPosition: s.tapPosition,
+          selectedElement: s.selectedElement,
+          isConnecting: s.isConnecting,
+          isDragging: s.isDragging,
+          connectingStart: s.connectingStart,
+          previewPosition: s.previewPosition,
+          currentType: s.currentType,
+        ),
+      ),
+    );
 
     final imageDimensions = ref.watch(
       interactiveImageProvider.select(
@@ -226,9 +306,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       ),
     );
 
-    final imageState = ref.watch(interactiveImageProvider);
-
-    final selected = imageState.selectedElement;
+    final selected = overlayState.selectedElement;
     final isSelectedOnThisFloor =
         selected != null && selected.floor == widget.floor;
     final shouldShowPin = widget.self.showSelectedPin && isSelectedOnThisFloor;
@@ -236,7 +314,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     if (widget.self.showSelectedPin) {
       if (shouldShowPin) {
         if (_iconController.status == AnimationStatus.dismissed) {
-          _iconController.forward();
+          unawaited(_iconController.forward());
         }
       } else if (_iconController.status != AnimationStatus.dismissed) {
         _iconController.reset();
@@ -316,6 +394,8 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
             floor: widget.floor,
             ref: widget.ref,
             imageDimensions: displaySize,
+            isConnecting: overlayState.isConnecting,
+            connectingStart: overlayState.connectingStart,
           ),
           Positioned.fill(
             child: IgnorePointer(
@@ -324,13 +404,22 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
                 painter: PassagePainter(
                   edges: widget.passageEdges,
                   previewEdge: widget.previewEdge,
-                  connectingType: imageState.connectingStart?.type,
+                  connectingType: overlayState.connectingStart?.type,
                   controller: transformationController,
                   routeSegments: widget.routeVisualSegments,
                   viewerSize: widget.viewerSize,
                   elevatorLinks: widget.elevatorLinks,
                   imageDimensions: displaySize,
-                  hideBaseEdges: widget.hasActiveRoute,
+                  hideBaseEdges:
+                      widget.self.widget.mode == CustomViewMode.finder ||
+                      widget.hasActiveRoute,
+                  routePulse:
+                      _shouldAnimateRoute ? _routePulseController : null,
+                  elements: widget.relevantElements
+                      .where((e) => e.floor == widget.floor)
+                      .toList(),
+                  selectedElement: isSelectedOnThisFloor ? selected : null,
+                  labelStyle: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
             ),
@@ -353,25 +442,30 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
                       pointerSize: pointerSize,
                       relevantElements: widget.relevantElements,
                       routeNodeIds: widget.routeNodeIds,
+                      selectedElement: selected,
+                      isConnecting: overlayState.isConnecting,
+                      isDragging: overlayState.isDragging,
                       ref: widget.ref,
                       imageDimensions: displaySize,
                     ),
 
                     if (widget.self.showTapDot &&
-                        imageState.tapPosition != null &&
-                        imageState.selectedElement == null)
+                        overlayState.tapPosition != null &&
+                        overlayState.selectedElement == null)
                       _TapDot(
                         self: widget.self,
                         pointerSize: pointerSize,
                         floor: widget.floor,
                         ref: widget.ref,
                         imageDimensions: displaySize,
+                        tapPosition: overlayState.tapPosition!,
+                        currentType: overlayState.currentType,
                       ),
                     if (widget.self.showSelectedPin &&
-                        imageState.selectedElement != null) ...[
+                        overlayState.selectedElement != null) ...[
                       Builder(
                         builder: (context) {
-                          final element = imageState.selectedElement!;
+                          final element = overlayState.selectedElement!;
                           final iconX = element.position.dx * displaySize.width;
                           final iconY =
                               element.position.dy * displaySize.height;
@@ -410,12 +504,16 @@ class _GestureLayer extends StatelessWidget {
     required this.floor,
     required this.ref,
     required this.imageDimensions,
+    required this.isConnecting,
+    required this.connectingStart,
   });
 
   final InteractiveImageMixin self;
   final int floor;
   final WidgetRef ref;
   final Size imageDimensions;
+  final bool isConnecting;
+  final CachedSData? connectingStart;
 
   Offset _toRelative(Offset absolutePosition) {
     if (imageDimensions.width == 0 || imageDimensions.height == 0) {
@@ -461,13 +559,11 @@ class _GestureLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageState = ref.watch(interactiveImageProvider);
     final notifier = ref.read(interactiveImageProvider.notifier);
     return Positioned.fill(
       child: Listener(
         onPointerMove: (details) {
-          if (imageState.isConnecting &&
-              imageState.connectingStart?.floor == floor) {
+          if (isConnecting && connectingStart?.floor == floor) {
             notifier.updatePreviewPosition(_toRelative(details.localPosition));
           }
         },
@@ -487,6 +583,8 @@ class _TapDot extends StatelessWidget {
     required this.floor,
     required this.ref,
     required this.imageDimensions,
+    required this.tapPosition,
+    required this.currentType,
   });
 
   final InteractiveImageMixin self;
@@ -494,6 +592,8 @@ class _TapDot extends StatelessWidget {
   final int floor;
   final WidgetRef ref;
   final Size imageDimensions;
+  final Offset tapPosition;
+  final PlaceType currentType;
 
   Offset _toAbsolute(Offset relativePosition) {
     return Offset(
@@ -504,25 +604,22 @@ class _TapDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageState = ref.watch(interactiveImageProvider);
     final notifier = ref.read(interactiveImageProvider.notifier);
 
-    final relativeTapPos = imageState.tapPosition!;
-    final absoluteTapPos = _toAbsolute(relativeTapPos);
+    final absoluteTapPos = _toAbsolute(tapPosition);
 
     return Positioned(
       left: absoluteTapPos.dx - pointerSize / 8 * 5 / 2,
       top: absoluteTapPos.dy - pointerSize / 8 * 5 / 2,
       child: GestureDetector(
-        onTap: () => notifier.onTapDetected(relativeTapPos),
+        onTap: () => notifier.onTapDetected(tapPosition),
         onDoubleTap: () {
-          if (imageState.tapPosition == null) return;
           final newSData = CachedSData(
             id: const Uuid().v4(),
             name: '新しい要素',
-            position: relativeTapPos,
+            position: tapPosition,
             floor: floor,
-            type: imageState.currentType,
+            type: currentType,
           );
           ref.read(activeBuildingProvider.notifier).addSData(newSData);
 

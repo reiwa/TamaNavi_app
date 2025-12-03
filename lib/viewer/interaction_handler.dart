@@ -16,9 +16,8 @@ void handleMarkerTapLogic<T extends CustomView>(
   bool isSelected,
   WidgetRef ref,
 ) {
-  final notifier = ref.read(interactiveImageProvider.notifier);
-
-  notifier.handleMarkerTap(sData, isSelected);
+  ref.read(interactiveImageProvider.notifier)
+  .handleMarkerTap(sData, isSelected);
 
   final updatedState = ref.read(interactiveImageProvider);
   final newSelected = updatedState.selectedElement;
