@@ -12,12 +12,12 @@ void updateEditorControllersPosition<T extends CustomView>(
 
 void handleMarkerTapLogic<T extends CustomView>(
   InteractiveImageMixin<T> host,
-  CachedSData sData,
-  bool isSelected,
-  WidgetRef ref,
-) {
+  CachedSData sData, {
+  required bool wasSelected,
+  required WidgetRef ref,
+}) {
   ref.read(interactiveImageProvider.notifier)
-  .handleMarkerTap(sData, isSelected);
+      .handleMarkerTap(sData, wasSelected: wasSelected);
 
   final updatedState = ref.read(interactiveImageProvider);
   final newSelected = updatedState.selectedElement;
@@ -48,13 +48,13 @@ void handleMarkerTapLogic<T extends CustomView>(
 
 void handleMarkerDragEndLogic<T extends CustomView>(
   InteractiveImageMixin<T> host,
-  Offset position,
-  bool isSelected,
-  WidgetRef ref,
-) {
+  Offset position, {
+  required bool wasSelected,
+  required WidgetRef ref,
+}) {
   ref
       .read(interactiveImageProvider.notifier)
-      .handleMarkerDragEnd(position, isSelected);
+      .handleMarkerDragEnd(position, wasSelected: wasSelected);
 
   final imgState = ref.read(interactiveImageProvider);
   final imageDimensions =

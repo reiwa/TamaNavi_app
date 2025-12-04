@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -251,13 +252,13 @@ class _LogoSplashAnimationState extends State<LogoSplashAnimation>
       ),
     ]).animate(_controller);
 
-    _controller..addStatusListener((status) {
+    _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         widget.onAnimationComplete();
       }
-    })
+    });
 
-    ..forward();
+    unawaited(_controller.forward());
   }
 
   @override

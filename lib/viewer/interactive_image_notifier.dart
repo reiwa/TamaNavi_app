@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:hooks_riverpod/legacy.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/models/room_finder_models.dart';
@@ -60,7 +60,7 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
     );
   }
 
-  void setDragging(bool isDragging) {
+  void setDragging({required bool isDragging}) {
     state = state.copyWith(isDragging: isDragging);
   }
 
@@ -100,7 +100,7 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
     }
   }
 
-  void handleMarkerTap(CachedSData element, bool wasSelected) {
+  void handleMarkerTap(CachedSData element, {required bool wasSelected}) {
     state = _delegate.handleMarkerTap(
       state: state,
       element: element,
@@ -108,7 +108,7 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
     );
   }
 
-  void handleMarkerDragEnd(Offset position, bool wasSelected) {
+  void handleMarkerDragEnd(Offset position, {required bool wasSelected}) {
     state = _delegate.handleMarkerDragEnd(
       state: state,
       position: position,

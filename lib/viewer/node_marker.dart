@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
@@ -195,14 +195,20 @@ List<Widget> buildNodeMarkers({
         enableDrag: self.enableElementDrag,
         isConnecting: isConnecting,
         imageDimensions: imageDimensions,
-        onTap: () => self.handleMarkerTap(sData, isSelected),
+        onTap: () => self.handleMarkerTap(
+          sData,
+          wasSelected: isSelected,
+        ),
         onDragStart: () {
           if (!isDragging) {
-            notifier.setDragging(true);
+            notifier.setDragging(isDragging: true);
           }
         },
         onDragUpdate: (_) {},
-        onDragEnd: (position) => self.handleMarkerDragEnd(position, isSelected),
+        onDragEnd: (position) => self.handleMarkerDragEnd(
+          position,
+          wasSelected: isSelected,
+        ),
       ),
     );
   }

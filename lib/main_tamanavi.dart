@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -24,20 +23,6 @@ void main() async {
   await Hive.initFlutter();
   final buildingCacheService = await BuildingCacheService.initialize();
 
-  try {
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: 'x27c65c67c26k@gmail.com',
-        password: 'puku3708',
-      );
-      debugPrint('管理者アカウントでログインしました');
-    }
-
-    debugPrint('現在のUID: ${FirebaseAuth.instance.currentUser?.uid}');
-  } on Exception catch (e) {
-    debugPrint('ログインエラー: $e');
-  }
-  
   runApp(
     ProviderScope(
       overrides: [
@@ -189,7 +174,7 @@ class RoomFinder extends StatefulWidget {
 enum CustomViewType { editor, finder }
 
 class _RoomFinderState extends State<RoomFinder> {
-  CustomViewType _mode = CustomViewType.finder;
+  final CustomViewType _mode = CustomViewType.finder;
   FinderLaunchIntent? _initialIntent;
 
   @override
@@ -254,38 +239,13 @@ class _RoomFinderState extends State<RoomFinder> {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(
-          child: Stack(
-            children: [
-              LayoutBuilder(
-                builder: (context, constraints) => Container(
-                  width: constraints.maxWidth,
-                  height: constraints.maxHeight,
-                  color: Colors.grey[50],
-                  child: _buildScopedView(),
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 126,
-                child: PopupMenuButton<CustomViewType>(
-                  onSelected: (type) {
-                    setState(() {
-                      _mode = type;
-                    });
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: CustomViewType.editor,
-                      child: Text('Editor'),
-                    ),
-                    PopupMenuItem(
-                      value: CustomViewType.finder,
-                      child: Text('Finder'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) => Container(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              color: Colors.grey[50],
+              child: _buildScopedView(),
+            ),
           ),
         ),
       ),

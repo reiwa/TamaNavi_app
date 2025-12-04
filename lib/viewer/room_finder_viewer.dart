@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/building_snapshot.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
@@ -73,11 +73,21 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
   void syncToBuilding(BuildingSnapshot snapshot, {CachedSData? focusElement}) =>
       syncToBuildingLogic(this, ref, focusElement: focusElement);
 
-  void handleMarkerTap(CachedSData sData, bool isSelected) =>
-      handleMarkerTapLogic(this, sData, isSelected, ref);
+  void handleMarkerTap(CachedSData sData, {required bool wasSelected}) =>
+      handleMarkerTapLogic(
+        this,
+        sData,
+        wasSelected: wasSelected,
+        ref: ref,
+      );
 
-  void handleMarkerDragEnd(Offset position, bool isSelected) =>
-      handleMarkerDragEndLogic(this, position, isSelected, ref);
+  void handleMarkerDragEnd(Offset position, {required bool wasSelected}) =>
+      handleMarkerDragEndLogic(
+        this,
+        position,
+        wasSelected: wasSelected,
+        ref: ref,
+      );
 
   bool _pendingContainerSync = false;
 

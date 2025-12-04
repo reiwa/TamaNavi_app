@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/models/room_finder_models.dart';
@@ -13,17 +14,6 @@ import 'package:tamanavi_app/viewer/node_marker.dart';
 import 'package:tamanavi_app/viewer/passage_painter.dart';
 import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 import 'package:uuid/uuid.dart';
-
-typedef _InteractionOverlayState = ({
-  Offset? tapPosition,
-  CachedSData? selectedElement,
-  bool isConnecting,
-  bool isDragging,
-  CachedSData? connectingStart,
-  Offset? previewPosition,
-  PlaceType currentType,
-});
-
 class InteractiveLayer extends StatelessWidget {
   const InteractiveLayer({
     required this.self,
@@ -71,8 +61,8 @@ class InteractiveLayer extends StatelessWidget {
               maxScale: self.maxScale,
               boundaryMargin: const EdgeInsets.all(200),
               onInteractionStart: (_) {
-                cachedScale =
-                    transformationController.value.getMaxScaleOnAxis();
+                cachedScale = transformationController.value
+                    .getMaxScaleOnAxis();
               },
               onInteractionEnd: (_) {
                 if (transformationController.value.getMaxScaleOnAxis() <=
@@ -167,7 +157,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
   late Animation<double> _iconAnimation;
   late final AnimationController _routePulseController;
   late final ProviderSubscription<InteractiveImageState>
-      _imageStateSubscription;
+  _imageStateSubscription;
   ProviderSubscription<AsyncValue<SvgPayload>>? _svgPayloadSubscription;
 
   @override
@@ -197,14 +187,9 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     _listenToSvgPayload(widget.imageUrl);
 
     if (widget.self.showSelectedPin) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final currentSelected = ref
-            .read(interactiveImageProvider)
-            .selectedElement;
-        if (currentSelected != null && currentSelected.floor == widget.floor) {
-          await _iconController.forward(from: 0);
-        }
+        _syncSelectedPinFromWidgetChange(restartAnimation: true);
       });
     }
   }
@@ -216,9 +201,13 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       (_, next) {
         next.whenData((payload) {
           if (!mounted) return;
-          ref
-              .read(interactiveImageProvider.notifier)
-              .setImageDimensions(widget.floor, payload.size);
+          unawaited(
+            WidgetsBinding.instance.endOfFrame.then((_) {
+              ref
+                  .read(interactiveImageProvider.notifier)
+                  .setImageDimensions(widget.floor, payload.size);
+            }),
+          );
         });
       },
       fireImmediately: true,
@@ -234,8 +223,34 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
         unawaited(_routePulseController.repeat());
       }
     } else if (_routePulseController.isAnimating) {
-      _routePulseController..stop()
-      ..value = 0;
+      _routePulseController
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  bool _isPinVisible(CachedSData? element) {
+    if (!widget.self.showSelectedPin || element == null) {
+      return false;
+    }
+    return element.floor == widget.floor;
+  }
+
+  void _syncSelectedPinFromWidgetChange({bool restartAnimation = false}) {
+    final currentSelected = ref
+        .read(interactiveImageProvider)
+        .selectedElement;
+    final shouldShowPin = _isPinVisible(currentSelected);
+
+    if (!shouldShowPin) {
+      if (_iconController.status != AnimationStatus.dismissed) {
+        _iconController.reset();
+      }
+      return;
+    }
+
+    if (restartAnimation || _iconController.status == AnimationStatus.dismissed) {
+      unawaited(_iconController.forward(from: 0));
     }
   }
 
@@ -251,25 +266,33 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
         oldWidget.floor != widget.floor) {
       _listenToSvgPayload(widget.imageUrl);
     }
+
+    if (oldWidget.floor != widget.floor ||
+        oldWidget.self.showSelectedPin != widget.self.showSelectedPin) {
+      _syncSelectedPinFromWidgetChange(
+        restartAnimation: widget.self.showSelectedPin &&
+            (oldWidget.floor != widget.floor ||
+                !oldWidget.self.showSelectedPin),
+      );
+    }
   }
 
   Future<void> _onImageStateChange(
     InteractiveImageState? previous,
     InteractiveImageState next,
   ) async {
-    if (!widget.self.showSelectedPin) {
+    final wasVisible = _isPinVisible(previous?.selectedElement);
+    final isVisible = _isPinVisible(next.selectedElement);
+
+    if (!isVisible) {
       if (_iconController.status != AnimationStatus.dismissed) {
         _iconController.reset();
       }
       return;
     }
-    final wasSelected = previous?.selectedElement != null;
-    final isSelected = next.selectedElement != null;
 
-    if (!wasSelected && isSelected) {
+    if (!wasVisible && isVisible) {
       await _iconController.forward(from: 0);
-    } else if (wasSelected && !isSelected) {
-      _iconController.reset();
     }
   }
 
@@ -286,7 +309,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
   Widget build(BuildContext context) {
     super.build(context);
 
-    final _InteractionOverlayState overlayState = ref.watch(
+    final overlayState = ref.watch(
       interactiveImageProvider.select(
         (s) => (
           tapPosition: s.tapPosition,
@@ -309,19 +332,6 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     final selected = overlayState.selectedElement;
     final isSelectedOnThisFloor =
         selected != null && selected.floor == widget.floor;
-    final shouldShowPin = widget.self.showSelectedPin && isSelectedOnThisFloor;
-
-    if (widget.self.showSelectedPin) {
-      if (shouldShowPin) {
-        if (_iconController.status == AnimationStatus.dismissed) {
-          unawaited(_iconController.forward());
-        }
-      } else if (_iconController.status != AnimationStatus.dismissed) {
-        _iconController.reset();
-      }
-    } else if (_iconController.status != AnimationStatus.dismissed) {
-      _iconController.reset();
-    }
 
     final transformationController = ref
         .read(interactiveImageProvider.notifier)
@@ -331,14 +341,6 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     final svgPayload = svgAsync.asData?.value;
 
     final resolvedDimensions = imageDimensions ?? svgPayload?.size;
-    if (svgPayload != null && imageDimensions == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        ref
-            .read(interactiveImageProvider.notifier)
-            .setImageDimensions(widget.floor, svgPayload.size);
-      });
-    }
 
     if (resolvedDimensions == null) {
       return svgAsync.when(
@@ -413,8 +415,9 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
                   hideBaseEdges:
                       widget.self.widget.mode == CustomViewMode.finder ||
                       widget.hasActiveRoute,
-                  routePulse:
-                      _shouldAnimateRoute ? _routePulseController : null,
+                  routePulse: _shouldAnimateRoute
+                      ? _routePulseController
+                      : null,
                   elements: widget.relevantElements
                       .where((e) => e.floor == widget.floor)
                       .toList(),

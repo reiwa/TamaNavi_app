@@ -18,5 +18,5 @@ git checkout main
 git fetch origin
 git pull origin main
 git branch -d 
-flutter build web
+flutter build web ./lib/main_tamanavi.dart
 firebase deploy --only hosting

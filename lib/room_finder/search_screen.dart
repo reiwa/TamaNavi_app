@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:tamanavi_app/models/room_finder_models.dart';
 import 'package:tamanavi_app/room_finder/room_finder_app.dart';
 

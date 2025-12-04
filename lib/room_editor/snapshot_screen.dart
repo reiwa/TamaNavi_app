@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/room_editor/room_finder_invocation_provider.dart';
@@ -102,8 +102,9 @@ class _InvocationPreview extends StatelessWidget {
   final String snippet;
 
   Future<void> _copyToClipboard(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
     await Clipboard.setData(ClipboardData(text: snippet));
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       const SnackBar(content: Text('RoomFinder呼び出しをコピーしました。')),
     );
   }
