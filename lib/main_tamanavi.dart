@@ -10,8 +10,11 @@ import 'package:tamanavi_app/firebase_options.dart';
 import 'package:tamanavi_app/room_editor/room_finder_app_editor.dart';
 import 'package:tamanavi_app/room_finder/building_cache_service.dart';
 import 'package:tamanavi_app/room_finder/room_finder_app.dart';
+import 'package:tamanavi_app/services/performance_tier_provider.dart';
+import 'package:tamanavi_app/services/user_settings_repository.dart';
 import 'package:tamanavi_app/splash_screen.dart';
 import 'package:tamanavi_app/theme/app_theme.dart';
+import 'package:tamanavi_app/theme/theme_mode_provider.dart';
 import 'package:tamanavi_app/viewer/interactions/editor_interaction_delegate.dart';
 import 'package:tamanavi_app/viewer/interactions/finder_interaction_delegate.dart';
 import 'package:tamanavi_app/viewer/interactions/interaction_delegate.dart';
@@ -22,11 +25,13 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await Hive.initFlutter();
   final buildingCacheService = await BuildingCacheService.initialize();
+  final userSettingsRepository = await UserSettingsRepository.initialize();
 
   runApp(
     ProviderScope(
       overrides: [
         buildingCacheServiceProvider.overrideWithValue(buildingCacheService),
+        userSettingsRepositoryProvider.overrideWithValue(userSettingsRepository),
       ],
       child: const MyApp(),
     ),
@@ -155,25 +160,27 @@ Future<void> startFontLoading() async {
   );
 }
 
-class RoomFinder extends StatefulWidget {
+class RoomFinder extends ConsumerStatefulWidget {
   const RoomFinder({
     super.key,
     this.navigateTo,
     this.navigateFrom,
     this.isDarkMode,
+    this.performanceTier,
   });
 
   final String? navigateTo;
   final String? navigateFrom;
   final bool? isDarkMode;
+  final PerformanceTier? performanceTier;
 
   @override
-  State<RoomFinder> createState() => _RoomFinderState();
+  ConsumerState<RoomFinder> createState() => _RoomFinderState();
 }
 
 enum CustomViewType { editor, finder }
 
-class _RoomFinderState extends State<RoomFinder> {
+class _RoomFinderState extends ConsumerState<RoomFinder> {
   final CustomViewType _mode = CustomViewType.finder;
   FinderLaunchIntent? _initialIntent;
 
@@ -184,6 +191,11 @@ class _RoomFinderState extends State<RoomFinder> {
       navigateTo: widget.navigateTo,
       navigateFrom: widget.navigateFrom,
     );
+    final initialDark = widget.isDarkMode;
+    if (initialDark != null) {
+      ref.read(themeModeProvider.notifier).setIsDark(isDark: initialDark);
+    }
+    _applyPerformanceTier(forceBenchmark: true);
   }
 
   @override
@@ -203,6 +215,19 @@ class _RoomFinderState extends State<RoomFinder> {
       } else {
         _initialIntent = nextIntent;
       }
+    }
+    if (widget.performanceTier != oldWidget.performanceTier) {
+      _applyPerformanceTier();
+    }
+  }
+
+  void _applyPerformanceTier({bool forceBenchmark = false}) {
+    final notifier = ref.read(performanceTierProvider.notifier);
+    final override = widget.performanceTier;
+    if (override != null) {
+      notifier.overrideTier(override);
+    } else if (forceBenchmark) {
+      unawaited(notifier.ensureInitialized());
     }
   }
 
@@ -234,18 +259,29 @@ class _RoomFinderState extends State<RoomFinder> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       theme: buildAppTheme(),
+      darkTheme: buildAppTheme(Brightness.dark),
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(
           child: LayoutBuilder(
-            builder: (context, constraints) => Container(
-              width: constraints.maxWidth,
-              height: constraints.maxHeight,
-              color: Colors.grey[50],
-              child: _buildScopedView(),
-            ),
+            builder: (context, constraints) {
+              final theme = Theme.of(context);
+              final scheme = theme.colorScheme;
+              final backgroundColor = theme.brightness == Brightness.dark
+                  ? scheme.surfaceContainerHighest
+                  : scheme.surface;
+
+              return Container(
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                color: backgroundColor,
+                child: _buildScopedView(),
+              );
+            },
           ),
         ),
       ),
@@ -253,14 +289,14 @@ class _RoomFinderState extends State<RoomFinder> {
   }
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  ConsumerState<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends ConsumerState<MyApp> {
   bool _isFinderVisible = false;
 
   @override
@@ -271,6 +307,9 @@ class _MyAppState extends State<MyApp> {
 
   void _preloadResources() {
     unawaited(
+      ref.read(performanceTierProvider.notifier).ensureInitialized(),
+    );
+    unawaited(
       Future.wait([
         startSvgLoading(),
         startFontLoading(),
@@ -280,8 +319,11 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       theme: buildAppTheme(),
+      darkTheme: buildAppTheme(Brightness.dark),
+      themeMode: themeMode,
       title: 'Hello Flutter',
       //showPerformanceOverlay: true,
       home: Scaffold(

@@ -41,11 +41,14 @@ class PassagePainter extends CustomPainter {
     this.elements = const [],
     this.selectedElement,
     this.labelStyle,
+    this.showRoomLabels = true,
   }) : super(
-          repaint: Listenable.merge([
-            controller,
-            ?routePulse,
-          ]),
+          repaint: Listenable.merge(
+            [
+              controller,
+              routePulse,
+            ].whereType<Listenable>().toList(),
+          ),
         );
 
   final List<Edge> edges;
@@ -61,6 +64,7 @@ class PassagePainter extends CustomPainter {
   final List<CachedSData> elements;
   final CachedSData? selectedElement;
   final TextStyle? labelStyle;
+  final bool showRoomLabels;
 
   Offset _toAbsolute(Offset relative) {
     if (imageDimensions.width == 0 || imageDimensions.height == 0) {
@@ -117,7 +121,9 @@ class PassagePainter extends CustomPainter {
     if (elevatorLinks.isNotEmpty) {
       _paintElevatorLinks(canvas);
     }
-    _paintNodeNames(canvas);
+    if (showRoomLabels) {
+      _paintNodeNames(canvas);
+    }
   }
 
   void _paintNodeNames(Canvas canvas) {
@@ -513,6 +519,7 @@ class PassagePainter extends CustomPainter {
     }
     if (old.hideBaseEdges != hideBaseEdges) return true;
     if (old.routePulse != routePulse) return true;
+    if (old.showRoomLabels != showRoomLabels) return true;
     return false;
   }
 }

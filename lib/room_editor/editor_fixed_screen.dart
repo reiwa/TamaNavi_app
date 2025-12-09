@@ -11,15 +11,25 @@ class PlaceTypeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Wrap(
       alignment: WrapAlignment.center,
-      spacing: 4,
+      spacing: 8,
+      runSpacing: 8,
       children: PlaceType.values.map((type) {
         final isSelected = currentType == type;
         return ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: isSelected ? type.color : null,
-            foregroundColor: isSelected ? Colors.white : null,
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            minimumSize: const Size(0, 32),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            elevation: isSelected ? 2 : 0,
+            backgroundColor: isSelected ? type.color : colorScheme.surface,
+            foregroundColor: isSelected ? Colors.white : colorScheme.onSurface,
           ),
           onPressed: () => onTypeSelected(type),
           child: Text(type.label),

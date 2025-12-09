@@ -7,6 +7,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:tamanavi_app/models/active_building_notifier.dart';
 import 'package:tamanavi_app/models/element_data_models.dart';
 import 'package:tamanavi_app/models/room_finder_models.dart';
+import 'package:tamanavi_app/services/performance_tier_provider.dart';
 import 'package:tamanavi_app/utility/platform_utils.dart';
 import 'package:tamanavi_app/viewer/interactive_image_notifier.dart';
 import 'package:tamanavi_app/viewer/interactive_image_state.dart';
@@ -14,6 +15,7 @@ import 'package:tamanavi_app/viewer/node_marker.dart';
 import 'package:tamanavi_app/viewer/passage_painter.dart';
 import 'package:tamanavi_app/viewer/room_finder_viewer.dart';
 import 'package:uuid/uuid.dart';
+
 class InteractiveLayer extends StatelessWidget {
   const InteractiveLayer({
     required this.self,
@@ -27,6 +29,7 @@ class InteractiveLayer extends StatelessWidget {
     required this.passageEdges,
     required this.hasActiveRoute,
     required this.ref,
+    required this.isPrimaryFloor,
     super.key,
     this.previewEdge,
   });
@@ -43,6 +46,7 @@ class InteractiveLayer extends StatelessWidget {
   final Edge? previewEdge;
   final bool hasActiveRoute;
   final WidgetRef ref;
+  final bool isPrimaryFloor;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +58,7 @@ class InteractiveLayer extends StatelessWidget {
       child: Stack(
         children: [
           IgnorePointer(
-            ignoring: self.canSwipeFloors,
+            ignoring: self.canSwipeFloors || !isPrimaryFloor,
             child: InteractiveViewer(
               transformationController: transformationController,
               minScale: self.minScale,
@@ -151,17 +155,26 @@ class _InteractiveContent extends ConsumerStatefulWidget {
       _InteractiveContentState();
 }
 
+typedef _OverlayViewState = ({
+  bool isCurrentFloor,
+  Offset? tapPosition,
+  CachedSData? selectedElement,
+  bool isConnecting,
+  bool isDragging,
+  CachedSData? connectingStart,
+  Offset? previewPosition,
+  PlaceType currentType,
+});
+
 class _InteractiveContentState extends ConsumerState<_InteractiveContent>
-    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+    with TickerProviderStateMixin {
   late AnimationController _iconController;
   late Animation<double> _iconAnimation;
   late final AnimationController _routePulseController;
   late final ProviderSubscription<InteractiveImageState>
   _imageStateSubscription;
   ProviderSubscription<AsyncValue<SvgPayload>>? _svgPayloadSubscription;
-
-  @override
-  bool get wantKeepAlive => true;
+  PerformanceTier? _lastPerformanceTier;
 
   @override
   void initState() {
@@ -178,7 +191,8 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
-    _syncRoutePulseState();
+    _lastPerformanceTier = ref.read(performanceTierProvider);
+    _syncRoutePulseState(_lastPerformanceTier!);
 
     _imageStateSubscription = ref.listenManual<InteractiveImageState>(
       interactiveImageProvider,
@@ -214,11 +228,15 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     );
   }
 
-  bool get _shouldAnimateRoute =>
-      widget.hasActiveRoute && widget.routeVisualSegments.isNotEmpty;
+  bool _shouldAnimateRoute(PerformanceTier tier) {
+    return tier.enableRoutePulse &&
+        widget.hasActiveRoute &&
+        widget.routeVisualSegments.isNotEmpty;
+  }
 
-  void _syncRoutePulseState() {
-    if (_shouldAnimateRoute) {
+  void _syncRoutePulseState(PerformanceTier tier) {
+    final animate = _shouldAnimateRoute(tier);
+    if (animate) {
       if (!_routePulseController.isAnimating) {
         unawaited(_routePulseController.repeat());
       }
@@ -237,12 +255,13 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
   }
 
   void _syncSelectedPinFromWidgetChange({bool restartAnimation = false}) {
+    final tier = ref.read(performanceTierProvider);
     final currentSelected = ref
         .read(interactiveImageProvider)
         .selectedElement;
     final shouldShowPin = _isPinVisible(currentSelected);
 
-    if (!shouldShowPin) {
+    if (!shouldShowPin || !tier.enableSelectedPinAnimation) {
       if (_iconController.status != AnimationStatus.dismissed) {
         _iconController.reset();
       }
@@ -260,7 +279,9 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     if (oldWidget.hasActiveRoute != widget.hasActiveRoute ||
         oldWidget.routeVisualSegments.length !=
             widget.routeVisualSegments.length) {
-      _syncRoutePulseState();
+        final tier = _lastPerformanceTier ??
+          ref.read<PerformanceTier>(performanceTierProvider);
+      _syncRoutePulseState(tier);
     }
     if (oldWidget.imageUrl != widget.imageUrl ||
         oldWidget.floor != widget.floor) {
@@ -281,10 +302,12 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     InteractiveImageState? previous,
     InteractiveImageState next,
   ) async {
+    final enablePinAnimation =
+      ref.read(performanceTierProvider).enableSelectedPinAnimation;
     final wasVisible = _isPinVisible(previous?.selectedElement);
     final isVisible = _isPinVisible(next.selectedElement);
 
-    if (!isVisible) {
+    if (!isVisible || !enablePinAnimation) {
       if (_iconController.status != AnimationStatus.dismissed) {
         _iconController.reset();
       }
@@ -307,21 +330,38 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-
     final overlayState = ref.watch(
-      interactiveImageProvider.select(
-        (s) => (
-          tapPosition: s.tapPosition,
-          selectedElement: s.selectedElement,
-          isConnecting: s.isConnecting,
-          isDragging: s.isDragging,
-          connectingStart: s.connectingStart,
-          previewPosition: s.previewPosition,
-          currentType: s.currentType,
-        ),
-      ),
+      interactiveImageProvider.select<_OverlayViewState>((s) {
+        final isCurrentFloor = s.currentFloor == widget.floor;
+        final selectedHere =
+            s.selectedElement != null && s.selectedElement!.floor == widget.floor;
+        final connectingHere = s.isConnecting &&
+            s.connectingStart != null &&
+            s.connectingStart!.floor == widget.floor;
+        return (
+          isCurrentFloor: isCurrentFloor,
+          tapPosition: isCurrentFloor ? s.tapPosition : null,
+          selectedElement: selectedHere ? s.selectedElement : null,
+          isConnecting: connectingHere,
+          isDragging: isCurrentFloor && s.isDragging,
+          connectingStart: connectingHere ? s.connectingStart : null,
+          previewPosition: connectingHere ? s.previewPosition : null,
+          currentType: isCurrentFloor ? s.currentType : PlaceType.room,
+        );
+      }),
     );
+
+    final performanceTier = ref.watch(performanceTierProvider);
+    if (_lastPerformanceTier != performanceTier) {
+      _lastPerformanceTier = performanceTier;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _syncRoutePulseState(performanceTier);
+        if (widget.self.showSelectedPin) {
+          _syncSelectedPinFromWidgetChange();
+        }
+      });
+    }
 
     final imageDimensions = ref.watch(
       interactiveImageProvider.select(
@@ -365,6 +405,8 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
       displaySize = Size(displaySize.width * scale, widget.viewerSize.height);
     }
 
+    final shouldAnimateRoute = _shouldAnimateRoute(performanceTier);
+
     return Container(
       alignment: Alignment.center,
       child: Stack(
@@ -398,6 +440,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
             imageDimensions: displaySize,
             isConnecting: overlayState.isConnecting,
             connectingStart: overlayState.connectingStart,
+            isFloorActive: overlayState.isCurrentFloor,
           ),
           Positioned.fill(
             child: IgnorePointer(
@@ -415,88 +458,122 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
                   hideBaseEdges:
                       widget.self.widget.mode == CustomViewMode.finder ||
                       widget.hasActiveRoute,
-                  routePulse: _shouldAnimateRoute
+                  routePulse: shouldAnimateRoute
                       ? _routePulseController
                       : null,
-                  elements: widget.relevantElements
-                      .where((e) => e.floor == widget.floor)
-                      .toList(),
+                    elements: widget.relevantElements,
                   selectedElement: isSelectedOnThisFloor ? selected : null,
                   labelStyle: Theme.of(context).textTheme.bodyMedium,
+                  showRoomLabels: performanceTier.showRoomLabels,
                 ),
               ),
             ),
           ),
           Positioned.fill(
-            child: AnimatedBuilder(
-              animation: transformationController,
-              builder: (context, child) {
-                final scale = transformationController.value
-                    .getMaxScaleOnAxis();
-                final pointerSize = 12 / sqrt(scale);
-
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    ...buildNodeMarkers(
-                      self: widget.self,
-                      context: context,
-                      floor: widget.floor,
-                      pointerSize: pointerSize,
-                      relevantElements: widget.relevantElements,
-                      routeNodeIds: widget.routeNodeIds,
-                      selectedElement: selected,
-                      isConnecting: overlayState.isConnecting,
-                      isDragging: overlayState.isDragging,
-                      ref: widget.ref,
-                      imageDimensions: displaySize,
-                    ),
-
-                    if (widget.self.showTapDot &&
-                        overlayState.tapPosition != null &&
-                        overlayState.selectedElement == null)
-                      _TapDot(
-                        self: widget.self,
+            child: overlayState.isCurrentFloor
+                ? AnimatedBuilder(
+                    animation: transformationController,
+                    builder: (context, child) {
+                      final scale = transformationController.value
+                          .getMaxScaleOnAxis();
+                      final pointerSize = _resolvePointerSize(scale);
+                      return _buildMarkerStack(
+                        context: context,
                         pointerSize: pointerSize,
-                        floor: widget.floor,
-                        ref: widget.ref,
-                        imageDimensions: displaySize,
-                        tapPosition: overlayState.tapPosition!,
-                        currentType: overlayState.currentType,
-                      ),
-                    if (widget.self.showSelectedPin &&
-                        overlayState.selectedElement != null) ...[
-                      Builder(
-                        builder: (context) {
-                          final element = overlayState.selectedElement!;
-                          final iconX = element.position.dx * displaySize.width;
-                          final iconY =
-                              element.position.dy * displaySize.height;
-                          final iconSize = pointerSize * 3.5;
-
-                          return Positioned(
-                            left: iconX - (iconSize / 2),
-                            top: iconY - iconSize * 0.9,
-                            child: ScaleTransition(
-                              scale: _iconAnimation,
-                              alignment: Alignment.bottomCenter,
-                              child: Icon(
-                                Icons.location_on,
-                                color: Colors.redAccent,
-                                size: iconSize,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ],
-                );
-              },
-            ),
+                        displaySize: displaySize,
+                        overlayState: overlayState,
+                        selected: selected,
+                        performanceTier: performanceTier,
+                        isSelectedOnThisFloor: isSelectedOnThisFloor,
+                      );
+                    },
+                  )
+                : _buildMarkerStack(
+                    context: context,
+                    pointerSize: _resolvePointerSize(1),
+                    displaySize: displaySize,
+                    overlayState: overlayState,
+                    selected: selected,
+                    performanceTier: performanceTier,
+                    isSelectedOnThisFloor: isSelectedOnThisFloor,
+                  ),
           ),
         ],
       ),
+    );
+  }
+
+  double _resolvePointerSize(double scale) {
+    if (scale <= 0) {
+      return 12;
+    }
+    final normalized = 12 / sqrt(scale);
+    return normalized.clamp(6, 28).toDouble();
+  }
+
+  Widget _buildMarkerStack({
+    required BuildContext context,
+    required double pointerSize,
+    required Size displaySize,
+    required _OverlayViewState overlayState,
+    required CachedSData? selected,
+    required PerformanceTier performanceTier,
+    required bool isSelectedOnThisFloor,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ...buildNodeMarkers(
+          self: widget.self,
+          context: context,
+          floor: widget.floor,
+          pointerSize: pointerSize,
+          relevantElements: widget.relevantElements,
+          routeNodeIds: widget.routeNodeIds,
+          selectedElement: selected,
+          isConnecting: overlayState.isConnecting,
+          isDragging: overlayState.isDragging,
+          ref: widget.ref,
+          imageDimensions: displaySize,
+        ),
+        if (widget.self.showTapDot &&
+            overlayState.tapPosition != null &&
+            overlayState.selectedElement == null)
+          _TapDot(
+            self: widget.self,
+            pointerSize: pointerSize,
+            floor: widget.floor,
+            ref: widget.ref,
+            imageDimensions: displaySize,
+            tapPosition: overlayState.tapPosition!,
+            currentType: overlayState.currentType,
+          ),
+        if (widget.self.showSelectedPin && isSelectedOnThisFloor)
+          Builder(
+            builder: (context) {
+              final element = overlayState.selectedElement!;
+              final iconX = element.position.dx * displaySize.width;
+              final iconY = element.position.dy * displaySize.height;
+              final iconSize = pointerSize * 3.5;
+              final icon = Icon(
+                Icons.location_on,
+                color: Colors.redAccent,
+                size: iconSize,
+              );
+              return Positioned(
+                left: iconX - (iconSize / 2),
+                top: iconY - iconSize * 0.9,
+                child: performanceTier.enableSelectedPinAnimation
+                    ? ScaleTransition(
+                        scale: _iconAnimation,
+                        alignment: Alignment.bottomCenter,
+                        child: icon,
+                      )
+                    : icon,
+              );
+            },
+          ),
+      ],
     );
   }
 }
@@ -509,6 +586,7 @@ class _GestureLayer extends StatelessWidget {
     required this.imageDimensions,
     required this.isConnecting,
     required this.connectingStart,
+    required this.isFloorActive,
   });
 
   final InteractiveImageMixin self;
@@ -517,6 +595,7 @@ class _GestureLayer extends StatelessWidget {
   final Size imageDimensions;
   final bool isConnecting;
   final CachedSData? connectingStart;
+  final bool isFloorActive;
 
   Offset _toRelative(Offset absolutePosition) {
     if (imageDimensions.width == 0 || imageDimensions.height == 0) {
@@ -564,15 +643,20 @@ class _GestureLayer extends StatelessWidget {
   Widget build(BuildContext context) {
     final notifier = ref.read(interactiveImageProvider.notifier);
     return Positioned.fill(
-      child: Listener(
-        onPointerMove: (details) {
-          if (isConnecting && connectingStart?.floor == floor) {
-            notifier.updatePreviewPosition(_toRelative(details.localPosition));
-          }
-        },
-        child: GestureDetector(
-          onTapDown: (details) => _handleTap(context, details.localPosition),
-          child: Container(color: Colors.transparent),
+      child: IgnorePointer(
+        ignoring: !isFloorActive,
+        child: Listener(
+          onPointerMove: (details) {
+            if (isConnecting && connectingStart?.floor == floor) {
+              notifier.updatePreviewPosition(
+                _toRelative(details.localPosition),
+              );
+            }
+          },
+          child: GestureDetector(
+            onTapDown: (details) => _handleTap(context, details.localPosition),
+            child: Container(color: Colors.transparent),
+          ),
         ),
       ),
     );

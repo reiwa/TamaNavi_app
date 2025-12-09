@@ -10,14 +10,10 @@ class _FloorPageView extends ConsumerStatefulWidget {
   ConsumerState<_FloorPageView> createState() => _FloorPageViewState();
 }
 
-class _FloorPageViewState extends ConsumerState<_FloorPageView>
-    with AutomaticKeepAliveClientMixin<_FloorPageView> {
+class _FloorPageViewState extends ConsumerState<_FloorPageView> {
   String? _lastPrefetchPattern;
   String? _lastPrefetchBuildingId;
   int? _lastPrefetchFloorCount;
-
-  @override
-  bool get wantKeepAlive => true;
 
   void _schedulePrefetchOnce({
     required String buildingId,
@@ -58,10 +54,13 @@ class _FloorPageViewState extends ConsumerState<_FloorPageView>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     final self = widget.self;
     final floor = widget.floor;
     final snap = ref.watch(activeBuildingProvider);
+    final currentFloor = ref.watch(
+      interactiveImageProvider.select((s) => s.currentFloor),
+    );
+    final isPrimaryFloor = currentFloor == floor;
     final relevantElements = snap.elements
         .where((sData) => sData.floor == floor)
         .toList();
@@ -226,6 +225,7 @@ class _FloorPageViewState extends ConsumerState<_FloorPageView>
                     previewEdge: previewEdge,
                     hasActiveRoute: hasActiveRoute,
                     ref: ref,
+                    isPrimaryFloor: isPrimaryFloor,
                   ),
                 ],
               );

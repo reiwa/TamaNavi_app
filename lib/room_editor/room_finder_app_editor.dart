@@ -464,18 +464,13 @@ class _FloorHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Expanded(
-            child: PlaceTypeSelector(
-              currentType: currentType,
-              onTypeSelected: onTypeSelected,
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Center(
+        child: PlaceTypeSelector(
+          currentType: currentType,
+          onTypeSelected: onTypeSelected,
+        ),
       ),
     );
   }
