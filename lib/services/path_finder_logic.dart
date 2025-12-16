@@ -9,6 +9,14 @@ class _AStarNode {
 }
 
 class Pathfinder {
+  const Pathfinder({
+    this.allowElevators = true,
+    this.allowStairs = true,
+  });
+
+  final bool allowElevators;
+  final bool allowStairs;
+
   static const double _floorChangeCost = 1;
 
   double _heuristic(CachedSData a, CachedSData b) {
@@ -46,12 +54,40 @@ class Pathfinder {
     return closestNode!;
   }
 
-  Iterable<String> _getNeighbors(BuildingSnapshot snapshot, String nodeId) {
+  bool _isTraversalAllowed(CachedSData node) {
+    if (!node.type.isVerticalConnector) {
+      return true;
+    }
+    if (node.type == PlaceType.elevator) {
+      return allowElevators;
+    }
+    if (node.type == PlaceType.stairs) {
+      return allowStairs;
+    }
+    return true;
+  }
+
+  Iterable<String> _getNeighbors(
+    BuildingSnapshot snapshot,
+    String nodeId,
+    Map<String, CachedSData> nodeMap,
+  ) {
     final neighbors = <String>{};
+    final currentNode = nodeMap[nodeId];
+    if (currentNode != null && !_isTraversalAllowed(currentNode)) {
+      return neighbors;
+    }
+
     for (final pData in snapshot.passages) {
       for (final edge in pData.edges) {
-        if (edge.contains(nodeId)) {
-          neighbors.addAll(edge.where((id) => id != nodeId));
+        if (!edge.contains(nodeId)) continue;
+
+        for (final neighborId in edge) {
+          if (neighborId == nodeId) continue;
+          final neighborNode = nodeMap[neighborId];
+          if (neighborNode == null) continue;
+          if (!_isTraversalAllowed(neighborNode)) continue;
+          neighbors.add(neighborId);
         }
       }
     }
@@ -106,7 +142,7 @@ class Pathfinder {
 
       closedSet.add(current.id);
 
-      for (final neighborId in _getNeighbors(snapshot, current.id)) {
+      for (final neighborId in _getNeighbors(snapshot, current.id, nodeMap)) {
         if (closedSet.contains(neighborId) ||
             !nodeMap.containsKey(neighborId)) {
           continue;

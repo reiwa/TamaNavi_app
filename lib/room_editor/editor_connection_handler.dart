@@ -23,15 +23,16 @@ bool canConnectNodes(CachedSData start, CachedSData tapped) {
 
   final sameFloor = tapped.floor == start.floor;
   if (!sameFloor) {
-    return start.type == PlaceType.elevator &&
-        tapped.type == PlaceType.elevator;
+    final bothVertical =
+      start.type.isVerticalConnector && tapped.type.isVerticalConnector;
+    return bothVertical && start.type == tapped.type;
   }
 
   final tappedIsConnectable = tapped.type.isGraphNode;
   final startIsSpecial =
-      start.type == PlaceType.elevator || start.type == PlaceType.entrance;
-  final tappedIsSpecial =
-      tapped.type == PlaceType.elevator || tapped.type == PlaceType.entrance;
+      start.type.isVerticalConnector || start.type == PlaceType.entrance;
+    final tappedIsSpecial =
+      tapped.type.isVerticalConnector || tapped.type == PlaceType.entrance;
 
   final isProhibitedConnection = startIsSpecial && tappedIsSpecial;
 

@@ -388,6 +388,18 @@ class _FinderViewState extends ConsumerState<FinderView>
     });
   }
 
+  void _setVerticalTraversalPreference({
+    bool? allowStairs,
+    bool? allowElevators,
+  }) {
+    ref
+        .read(interactiveImageProvider.notifier)
+        .setVerticalTraversalPreference(
+          allowStairs: allowStairs,
+          allowElevators: allowElevators,
+        );
+  }
+
   Future<void> _maybeProcessPendingIntent() async {
     if (_pendingIntent == null || !_firstFrameRendered || _isProcessingIntent) {
       return;
@@ -611,6 +623,12 @@ class _FinderViewState extends ConsumerState<FinderView>
               onStartNavigation: _startNavigation,
               canStartNavigation:
                   imageState.selectedRoomInfo != null && entrances.isNotEmpty,
+              allowStairs: imageState.allowStairs,
+              allowElevators: imageState.allowElevators,
+              onAllowStairsChanged: (value) =>
+                  _setVerticalTraversalPreference(allowStairs: value),
+              onAllowElevatorsChanged: (value) =>
+                  _setVerticalTraversalPreference(allowElevators: value),
             );
           }();
 
@@ -636,18 +654,21 @@ class _FinderViewState extends ConsumerState<FinderView>
   }
 
   Widget _buildHeader(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final headerOverlayColor = colorScheme.surfaceContainerHighest.withValues(
+      alpha: theme.brightness == Brightness.dark ? 0.55 : 0.32,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
+          color: headerOverlayColor,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: colorScheme.outlineVariant,
-            width: 1.2,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
         child: Row(

@@ -37,6 +37,8 @@ mixin _$InteractiveImageState {
   bool get needsNavigationOnBuild => throw _privateConstructorUsedError;
   Map<int, Size> get imageDimensionsByFloor =>
       throw _privateConstructorUsedError;
+  bool get allowStairs => throw _privateConstructorUsedError;
+  bool get allowElevators => throw _privateConstructorUsedError;
 
   /// Create a copy of InteractiveImageState
   /// with the given fields replaced by the non-null parameter values.
@@ -70,6 +72,8 @@ abstract class $InteractiveImageStateCopyWith<$Res> {
     String? currentBuildingRoomId,
     bool needsNavigationOnBuild,
     Map<int, Size> imageDimensionsByFloor,
+    bool allowStairs,
+    bool allowElevators,
   });
 
   $CachedSDataCopyWith<$Res>? get selectedElement;
@@ -112,6 +116,8 @@ class _$InteractiveImageStateCopyWithImpl<
     Object? currentBuildingRoomId = freezed,
     Object? needsNavigationOnBuild = null,
     Object? imageDimensionsByFloor = null,
+    Object? allowStairs = null,
+    Object? allowElevators = null,
   }) {
     return _then(
       _value.copyWith(
@@ -183,6 +189,14 @@ class _$InteractiveImageStateCopyWithImpl<
                 ? _value.imageDimensionsByFloor
                 : imageDimensionsByFloor // ignore: cast_nullable_to_non_nullable
                       as Map<int, Size>,
+            allowStairs: null == allowStairs
+                ? _value.allowStairs
+                : allowStairs // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            allowElevators: null == allowElevators
+                ? _value.allowElevators
+                : allowElevators // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -258,6 +272,8 @@ abstract class _$$InteractiveImageStateImplCopyWith<$Res>
     String? currentBuildingRoomId,
     bool needsNavigationOnBuild,
     Map<int, Size> imageDimensionsByFloor,
+    bool allowStairs,
+    bool allowElevators,
   });
 
   @override
@@ -300,6 +316,8 @@ class __$$InteractiveImageStateImplCopyWithImpl<$Res>
     Object? currentBuildingRoomId = freezed,
     Object? needsNavigationOnBuild = null,
     Object? imageDimensionsByFloor = null,
+    Object? allowStairs = null,
+    Object? allowElevators = null,
   }) {
     return _then(
       _$InteractiveImageStateImpl(
@@ -371,6 +389,14 @@ class __$$InteractiveImageStateImplCopyWithImpl<$Res>
             ? _value._imageDimensionsByFloor
             : imageDimensionsByFloor // ignore: cast_nullable_to_non_nullable
                   as Map<int, Size>,
+        allowStairs: null == allowStairs
+            ? _value.allowStairs
+            : allowStairs // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        allowElevators: null == allowElevators
+            ? _value.allowElevators
+            : allowElevators // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -397,6 +423,8 @@ class _$InteractiveImageStateImpl implements _InteractiveImageState {
     this.currentBuildingRoomId,
     this.needsNavigationOnBuild = false,
     final Map<int, Size> imageDimensionsByFloor = const {},
+    this.allowStairs = true,
+    this.allowElevators = true,
   }) : _imageDimensionsByFloor = imageDimensionsByFloor;
 
   @override
@@ -452,8 +480,15 @@ class _$InteractiveImageStateImpl implements _InteractiveImageState {
   }
 
   @override
+  @JsonKey()
+  final bool allowStairs;
+  @override
+  @JsonKey()
+  final bool allowElevators;
+
+  @override
   String toString() {
-    return 'InteractiveImageState(tapPosition: $tapPosition, selectedElement: $selectedElement, isDragging: $isDragging, isConnecting: $isConnecting, connectingStart: $connectingStart, previewPosition: $previewPosition, activeBuildingId: $activeBuildingId, currentFloor: $currentFloor, currentZoomScale: $currentZoomScale, currentType: $currentType, pendingFocusElement: $pendingFocusElement, suppressClearOnPageChange: $suppressClearOnPageChange, isSearchMode: $isSearchMode, selectedRoomInfo: $selectedRoomInfo, currentBuildingRoomId: $currentBuildingRoomId, needsNavigationOnBuild: $needsNavigationOnBuild, imageDimensionsByFloor: $imageDimensionsByFloor)';
+    return 'InteractiveImageState(tapPosition: $tapPosition, selectedElement: $selectedElement, isDragging: $isDragging, isConnecting: $isConnecting, connectingStart: $connectingStart, previewPosition: $previewPosition, activeBuildingId: $activeBuildingId, currentFloor: $currentFloor, currentZoomScale: $currentZoomScale, currentType: $currentType, pendingFocusElement: $pendingFocusElement, suppressClearOnPageChange: $suppressClearOnPageChange, isSearchMode: $isSearchMode, selectedRoomInfo: $selectedRoomInfo, currentBuildingRoomId: $currentBuildingRoomId, needsNavigationOnBuild: $needsNavigationOnBuild, imageDimensionsByFloor: $imageDimensionsByFloor, allowStairs: $allowStairs, allowElevators: $allowElevators)';
   }
 
   @override
@@ -499,11 +534,15 @@ class _$InteractiveImageStateImpl implements _InteractiveImageState {
             const DeepCollectionEquality().equals(
               other._imageDimensionsByFloor,
               _imageDimensionsByFloor,
-            ));
+            ) &&
+            (identical(other.allowStairs, allowStairs) ||
+                other.allowStairs == allowStairs) &&
+            (identical(other.allowElevators, allowElevators) ||
+                other.allowElevators == allowElevators));
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     runtimeType,
     tapPosition,
     selectedElement,
@@ -522,7 +561,9 @@ class _$InteractiveImageStateImpl implements _InteractiveImageState {
     currentBuildingRoomId,
     needsNavigationOnBuild,
     const DeepCollectionEquality().hash(_imageDimensionsByFloor),
-  );
+    allowStairs,
+    allowElevators,
+  ]);
 
   /// Create a copy of InteractiveImageState
   /// with the given fields replaced by the non-null parameter values.
@@ -556,6 +597,8 @@ abstract class _InteractiveImageState implements InteractiveImageState {
     final String? currentBuildingRoomId,
     final bool needsNavigationOnBuild,
     final Map<int, Size> imageDimensionsByFloor,
+    final bool allowStairs,
+    final bool allowElevators,
   }) = _$InteractiveImageStateImpl;
 
   @override
@@ -594,6 +637,10 @@ abstract class _InteractiveImageState implements InteractiveImageState {
   bool get needsNavigationOnBuild;
   @override
   Map<int, Size> get imageDimensionsByFloor;
+  @override
+  bool get allowStairs;
+  @override
+  bool get allowElevators;
 
   /// Create a copy of InteractiveImageState
   /// with the given fields replaced by the non-null parameter values.

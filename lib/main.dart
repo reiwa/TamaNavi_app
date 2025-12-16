@@ -31,7 +31,7 @@ void main() async {
     if (FirebaseAuth.instance.currentUser == null) {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: 'x27c65c67c26k@gmail.com',
-        password: 'puku3708',
+        password: 'Puku0831',
       );
       debugPrint('管理者アカウントでログインしました');
     }

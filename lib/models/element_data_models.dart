@@ -30,8 +30,11 @@ enum PlaceType implements PlaceDescriptor {
   passage(
     _PlaceDescriptor(color: AppPalette.primary, isGraphNode: true, label: '廊下'),
   ),
+  stairs(
+    _PlaceDescriptor(color: Colors.deepPurple, isGraphNode: true, label: '階段'),
+  ),
   elevator(
-    _PlaceDescriptor(color: Colors.purple, isGraphNode: true, label: '階段'),
+    _PlaceDescriptor(color: Colors.purpleAccent, isGraphNode: true, label: 'エレベーター'),
   ),
   entrance(
     _PlaceDescriptor(
@@ -53,6 +56,11 @@ enum PlaceType implements PlaceDescriptor {
 
   @override
   String get label => _descriptor.label;
+}
+
+extension PlaceTypeV on PlaceType {
+  bool get isVerticalConnector =>
+      this == PlaceType.elevator || this == PlaceType.stairs;
 }
 
 @freezed
@@ -105,8 +113,8 @@ class RouteVisualSegment {
   bool get touchesEntrance =>
       fromType == PlaceType.entrance || toType == PlaceType.entrance;
 
-  bool get touchesElevator =>
-      fromType == PlaceType.elevator || toType == PlaceType.elevator;
+  bool get touchesVerticalConnector =>
+      fromType.isVerticalConnector || toType.isVerticalConnector;
 }
 
 extension CachedSDataFirestore on CachedSData {

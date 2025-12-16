@@ -520,6 +520,8 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
     required PerformanceTier performanceTier,
     required bool isSelectedOnThisFloor,
   }) {
+    final highlightedNodeIds = _resolveEditorHighlights(selected);
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -535,6 +537,7 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
           isDragging: overlayState.isDragging,
           ref: widget.ref,
           imageDimensions: displaySize,
+          highlightedNodeIds: highlightedNodeIds,
         ),
         if (widget.self.showTapDot &&
             overlayState.tapPosition != null &&
@@ -575,6 +578,37 @@ class _InteractiveContentState extends ConsumerState<_InteractiveContent>
           ),
       ],
     );
+  }
+
+  Set<String> _resolveEditorHighlights(CachedSData? selected) {
+    if (widget.self.widget.mode != CustomViewMode.editor) {
+      return const <String>{};
+    }
+    if (selected == null || !selected.type.isVerticalConnector) {
+      return const <String>{};
+    }
+
+    final building = ref.read(activeBuildingProvider);
+    if (building.passages.isEmpty) {
+      return const <String>{};
+    }
+
+    final elementsById = {
+      for (final element in building.elements) element.id: element,
+    };
+
+    final highlighted = <String>{};
+    for (final edge in building.passages.first.edges) {
+      if (edge.length != 2 || !edge.contains(selected.id)) continue;
+      final ids = edge.toList(growable: false);
+      final otherId = ids[0] == selected.id ? ids[1] : ids[0];
+      final other = elementsById[otherId];
+      if (other?.type == selected.type) {
+        highlighted.add(otherId);
+      }
+    }
+
+    return highlighted;
   }
 }
 

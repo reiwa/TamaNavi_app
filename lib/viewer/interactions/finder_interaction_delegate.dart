@@ -102,7 +102,10 @@ class FinderInteractionDelegate extends InteractionDelegate {
     required String targetElementId,
   }) async {
     final active = ref.read(activeBuildingProvider);
-    final pathfinder = Pathfinder();
+    final pathfinder = Pathfinder(
+      allowElevators: state.allowElevators,
+      allowStairs: state.allowStairs,
+    );
     final nodes = pathfinder.findPathFromSnapshot(
       active,
       startNodeId,

@@ -219,6 +219,18 @@ class InteractiveImageNotifier extends StateNotifier<InteractiveImageState> {
     state = state.copyWith(currentType: type);
   }
 
+  void setVerticalTraversalPreference({
+    bool? allowStairs,
+    bool? allowElevators,
+  }) {
+    final next = state.copyWith(
+      allowStairs: allowStairs ?? state.allowStairs,
+      allowElevators: allowElevators ?? state.allowElevators,
+    );
+    if (next == state) return;
+    state = next;
+  }
+
   void toggleConnectionMode() {
     state = _delegate.toggleConnectionMode(state);
   }

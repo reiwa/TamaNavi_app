@@ -143,6 +143,35 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
     state = state.copyWith(passages: nextPassages);
   }
 
+  bool hasEdgeBetween(String startId, String endId) {
+    if (startId == endId || state.passages.isEmpty) {
+      return false;
+    }
+
+    final first = state.passages.first;
+    return first.edges.any(
+      (edge) => edge.length == 2 && edge.contains(startId) && edge.contains(endId),
+    );
+  }
+
+  void removeEdge(String startId, String endId) {
+    if (startId == endId || state.passages.isEmpty) {
+      return;
+    }
+
+    final first = state.passages.first;
+    final filtered = first.edges.where(
+      (edge) => !(edge.length == 2 && edge.contains(startId) && edge.contains(endId)),
+    ).toSet();
+
+    if (filtered.length == first.edges.length) {
+      return;
+    }
+
+    final nextPassages = [CachedPData(edges: filtered), ...state.passages.skip(1)];
+    state = state.copyWith(passages: nextPassages);
+  }
+
   bool hasEdges(String passageId) {
     if (state.passages.isEmpty) return false;
     return state.passages.first.edges.any((set) => set.contains(passageId));
@@ -155,15 +184,36 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
 
     final elementsById = {for (final e in state.elements) e.id: e};
 
+    Offset absolutePosition(CachedSData data) {
+      final size = imageDimensions[data.floor];
+      final width = size?.width ?? 1.0;
+      final height = size?.height ?? 1.0;
+      return Offset(data.position.dx * width, data.position.dy * height);
+    }
+
     final cleanedPassages = passages
         .map(
           (p) => CachedPData(
             edges: p.edges.where((edge) {
               if (edge.length != 2) return true;
-              final hasRoom = edge.any(
+              final ids = edge.toList(growable: false);
+              final first = elementsById[ids[0]];
+              final second = elementsById[ids[1]];
+
+              final touchesRoom = ids.any(
                 (id) => elementsById[id]?.type == PlaceType.room,
               );
-              return !hasRoom;
+              if (touchesRoom) return false;
+
+                final isVerticalPair =
+                  first != null &&
+                  second != null &&
+                  first.type.isVerticalConnector &&
+                  first.type == second.type &&
+                  second.type.isVerticalConnector &&
+                  first.floor != second.floor;
+
+              return !isVerticalPair;
             }).toSet(),
           ),
         )
@@ -215,6 +265,128 @@ class ActiveBuildingNotifier extends Notifier<BuildingSnapshot> {
         final key = edgeKey(room.id, closest.id);
         if (existingEdgeKeys.add(key)) {
           bucket.add({room.id, closest.id});
+        }
+      }
+    }
+
+    const verticalTypes = [PlaceType.elevator, PlaceType.stairs];
+    for (final type in verticalTypes) {
+      final connectorsByFloor = <int, List<CachedSData>>{};
+      for (final element in state.elements) {
+        if (element.type != type) continue;
+        connectorsByFloor.putIfAbsent(element.floor, () => []).add(element);
+      }
+      if (connectorsByFloor.isEmpty) continue;
+
+      for (final floorEntry in connectorsByFloor.entries) {
+        final floor = floorEntry.key;
+        final nodes = floorEntry.value;
+
+        final size = imageDimensions[floor];
+        final width = size?.width ?? 1.0;
+        final height = size?.height ?? 1.0;
+
+        for (final offset in const [-1, 1]) {
+          final adjacentFloor = floor + offset;
+          final adjacentNodes = connectorsByFloor[adjacentFloor];
+          if (adjacentNodes == null || adjacentNodes.isEmpty) continue;
+
+          for (final node in nodes) {
+            final nodePos = Offset(
+              node.position.dx * width,
+              node.position.dy * height,
+            );
+            CachedSData? closest;
+            var bestDist = double.infinity;
+
+            for (final candidate in adjacentNodes) {
+              final candidatePos = Offset(
+                candidate.position.dx * width,
+                candidate.position.dy * height,
+              );
+              final dx = nodePos.dx - candidatePos.dx;
+              final dy = nodePos.dy - candidatePos.dy;
+              final dist = dx * dx + dy * dy;
+              if (dist < bestDist) {
+                bestDist = dist;
+                closest = candidate;
+              }
+            }
+
+            if (closest == null) continue;
+            final key = edgeKey(node.id, closest.id);
+            if (existingEdgeKeys.add(key)) {
+              bucket.add({node.id, closest.id});
+            }
+          }
+        }
+      }
+    }
+
+    const connectorTypes = <PlaceType>{
+      PlaceType.entrance,
+      PlaceType.stairs,
+      PlaceType.elevator,
+      PlaceType.passage,
+    };
+
+    final connectorsByFloor = <int, List<CachedSData>>{};
+    for (final element in state.elements) {
+      if (!connectorTypes.contains(element.type)) continue;
+      connectorsByFloor.putIfAbsent(element.floor, () => []).add(element);
+    }
+
+    final connectorLinkCounts = <String, int>{};
+    for (final edge in bucket) {
+      if (edge.length != 2) continue;
+      final ids = edge.toList(growable: false);
+      final firstNode = elementsById[ids[0]];
+      final secondNode = elementsById[ids[1]];
+      if (firstNode == null || secondNode == null) continue;
+      if (connectorTypes.contains(firstNode.type) &&
+          connectorTypes.contains(secondNode.type)) {
+        connectorLinkCounts..update(firstNode.id, (value) => value + 1, ifAbsent: () => 1)
+        ..update(secondNode.id, (value) => value + 1, ifAbsent: () => 1);
+      }
+    }
+
+    for (final entry in connectorsByFloor.entries) {
+      final floorNodes = entry.value;
+      if (floorNodes.length < 2) continue;
+
+      final absoluteById = <String, Offset>{
+        for (final node in floorNodes) node.id: absolutePosition(node),
+      };
+
+      for (final node in floorNodes) {
+        if ((connectorLinkCounts[node.id] ?? 0) >= 1) continue;
+
+        final nodePos = absoluteById[node.id]!;
+        CachedSData? closest;
+        var bestDist = double.infinity;
+
+        for (final candidate in floorNodes) {
+          if (candidate.id == node.id) continue;
+          if ((connectorLinkCounts[candidate.id] ?? 0) >= 1) continue;
+
+          final candidatePos = absoluteById[candidate.id]!;
+          final dx = nodePos.dx - candidatePos.dx;
+          final dy = nodePos.dy - candidatePos.dy;
+          final dist = dx * dx + dy * dy;
+          if (dist < bestDist) {
+            bestDist = dist;
+            closest = candidate;
+          }
+        }
+
+        if (closest == null) continue;
+
+        final key = edgeKey(node.id, closest.id);
+        if (existingEdgeKeys.add(key)) {
+          bucket.add({node.id, closest.id});
+          connectorLinkCounts[node.id] = (connectorLinkCounts[node.id] ?? 0) + 1;
+          connectorLinkCounts[closest.id] =
+              (connectorLinkCounts[closest.id] ?? 0) + 1;
         }
       }
     }

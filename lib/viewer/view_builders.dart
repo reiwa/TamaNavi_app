@@ -88,9 +88,11 @@ class _FloorPageViewState extends ConsumerState<_FloorPageView> {
           ),
         );
       }
-      if (segment.from.floor != segment.to.floor &&
-          (segment.from.type == PlaceType.elevator ||
-              segment.to.type == PlaceType.elevator)) {
+      final crossesFloors = segment.from.floor != segment.to.floor;
+      final connectsVerticalNodes =
+          segment.from.type.isVerticalConnector &&
+          segment.to.type.isVerticalConnector;
+      if (crossesFloors && connectsVerticalNodes) {
         final sortedIds = [segment.from.id, segment.to.id]..sort();
         routeElevatorPairs.add('${sortedIds[0]}|${sortedIds[1]}');
         routeElevatorDirections.add('${segment.from.id}->${segment.to.id}');
@@ -116,7 +118,7 @@ class _FloorPageViewState extends ConsumerState<_FloorPageView> {
         ElevatorVerticalLink(
           origin: source.position,
           isUpward: target.floor > source.floor,
-          color: PlaceType.elevator.color,
+          color: source.type.color,
           targetFloor: target.floor,
           highlight: matchesDirection,
           message: self.widget.mode == CustomViewMode.editor
@@ -132,10 +134,11 @@ class _FloorPageViewState extends ConsumerState<_FloorPageView> {
       final first = elementsById[ids[0]];
       final second = elementsById[ids[1]];
       if (first == null || second == null) continue;
-      if (first.type != PlaceType.elevator ||
-          second.type != PlaceType.elevator) {
-        continue;
-      }
+      final isVerticalPair =
+          first.type.isVerticalConnector &&
+          second.type.isVerticalConnector &&
+          first.type == second.type;
+      if (!isVerticalPair) continue;
       if (first.floor == second.floor) continue;
       pushElevatorLink(first, second);
       pushElevatorLink(second, first);

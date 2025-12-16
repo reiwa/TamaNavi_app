@@ -41,11 +41,11 @@ mixin InteractiveImageMixin<T extends CustomView> on ConsumerState<T> {
         .read(interactiveImageProvider.notifier)
         .transformationController;
     final scale = transformationController.value.getMaxScaleOnAxis();
-    final canSwipeWhileConnectingElevator =
-        s.isConnecting && (s.connectingStart?.type == PlaceType.elevator);
+    final canSwipeWhileConnectingVerticalConnector = s.isConnecting &&
+        (s.connectingStart?.type.isVerticalConnector ?? false);
     return isDesktopOrElse &&
         !s.isDragging &&
-        (!s.isConnecting || canSwipeWhileConnectingElevator) &&
+        (!s.isConnecting || canSwipeWhileConnectingVerticalConnector) &&
         scale <= 1.05;
   }
 

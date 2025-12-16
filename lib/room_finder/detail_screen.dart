@@ -17,6 +17,10 @@ class FinderDetailContent extends StatefulWidget {
     required this.selectedElementLabel,
     required this.onStartNavigation,
     required this.canStartNavigation,
+    required this.allowStairs,
+    required this.allowElevators,
+    required this.onAllowStairsChanged,
+    required this.onAllowElevatorsChanged,
     super.key,
   });
 
@@ -33,6 +37,10 @@ class FinderDetailContent extends StatefulWidget {
   final String selectedElementLabel;
   final VoidCallback? onStartNavigation;
   final bool canStartNavigation;
+  final bool allowStairs;
+  final bool allowElevators;
+  final ValueChanged<bool> onAllowStairsChanged;
+  final ValueChanged<bool> onAllowElevatorsChanged;
 
   @override
   State<FinderDetailContent> createState() => _FinderDetailContentState();
@@ -55,8 +63,15 @@ class _FinderDetailContentState extends State<FinderDetailContent> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final elevatedSurfaceColor =
+        isDark ? colorScheme.surface : Colors.white;
+    final elevatedShadowColor = colorScheme.shadow.withValues(
+      alpha: isDark ? 0.45 : 0.08,
+    );
     return Column(
       children: [
         Padding(
@@ -66,8 +81,18 @@ class _FinderDetailContentState extends State<FinderDetailContent> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              color: colorScheme.surface.withValues(alpha: 0.7),
-              border: Border.all(color: colorScheme.outlineVariant, width: 0.8),
+              color: elevatedSurfaceColor,
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+                width: 0.8,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: elevatedShadowColor,
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
@@ -150,6 +175,16 @@ class _FinderDetailContentState extends State<FinderDetailContent> {
             height: 160,
             child: RepaintBoundary(
               child: Card(
+                color: elevatedSurfaceColor,
+                elevation: isDark ? 0 : 8,
+                shadowColor: elevatedShadowColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                    width: 0.6,
+                  ),
+                ),
                 child: Scrollbar(
                   controller: _infoScrollController,
                   thumbVisibility: false,
@@ -192,6 +227,11 @@ class _FinderDetailContentState extends State<FinderDetailContent> {
                           colorScheme: colorScheme,
                           canStartNavigation: widget.canStartNavigation,
                           onStartNavigation: widget.onStartNavigation,
+                          allowStairs: widget.allowStairs,
+                          allowElevators: widget.allowElevators,
+                          onAllowStairsChanged: widget.onAllowStairsChanged,
+                          onAllowElevatorsChanged:
+                              widget.onAllowElevatorsChanged,
                         ),
                       ],
                     ),
@@ -291,6 +331,10 @@ class _EntranceSelectionPanel extends StatelessWidget {
     required this.colorScheme,
     required this.canStartNavigation,
     required this.onStartNavigation,
+    required this.allowStairs,
+    required this.allowElevators,
+    required this.onAllowStairsChanged,
+    required this.onAllowElevatorsChanged,
   });
 
   final List<CachedSData> entrances;
@@ -300,6 +344,10 @@ class _EntranceSelectionPanel extends StatelessWidget {
   final ColorScheme colorScheme;
   final bool canStartNavigation;
   final VoidCallback? onStartNavigation;
+  final bool allowStairs;
+  final bool allowElevators;
+  final ValueChanged<bool> onAllowStairsChanged;
+  final ValueChanged<bool> onAllowElevatorsChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -311,7 +359,7 @@ class _EntranceSelectionPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '出発地点を選択',
+          '出発地点を選ぶ',
           style: textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
           ),
@@ -386,6 +434,29 @@ class _EntranceSelectionPanel extends StatelessWidget {
               );
             },
           ),
+        const SizedBox(height: 14),
+        Text(
+          '移動手段を選ぶ',
+          style: textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _VerticalPreferenceCheckbox(
+          label: 'エレベーターを使う',
+          value: allowElevators,
+          onChanged: onAllowElevatorsChanged,
+          textTheme: textTheme,
+          colorScheme: colorScheme,
+        ),
+        const SizedBox(height: 6),
+        _VerticalPreferenceCheckbox(
+          label: '階段を使う',
+          value: allowStairs,
+          onChanged: onAllowStairsChanged,
+          textTheme: textTheme,
+          colorScheme: colorScheme,
+        ),
         const SizedBox(height: 10),
         ElevatedButton.icon(
           icon: const Icon(Icons.alt_route_rounded),
@@ -393,6 +464,44 @@ class _EntranceSelectionPanel extends StatelessWidget {
           onPressed: enableButton ? onStartNavigation : null,
         ),
       ],
+    );
+  }
+}
+
+class _VerticalPreferenceCheckbox extends StatelessWidget {
+  const _VerticalPreferenceCheckbox({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    required this.textTheme,
+    required this.colorScheme,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final TextTheme textTheme;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant, width: 0.8),
+        color: colorScheme.surface.withValues(alpha: 0.6),
+      ),
+      child: CheckboxListTile(
+        value: value,
+        onChanged: (checked) => onChanged(checked ?? false),
+        title: Text(
+          label,
+          style: textTheme.bodyMedium,
+        ),
+        dense: true,
+        controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      ),
     );
   }
 }

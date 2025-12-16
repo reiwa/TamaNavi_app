@@ -91,10 +91,10 @@ class _$BuildingSnapshotCopyWithImpl<$Res, $Val extends BuildingSnapshot>
                 ? _value.imagePattern
                 : imagePattern // ignore: cast_nullable_to_non_nullable
                       as String,
-      tags: null == tags
-        ? _value.tags
-        : tags // ignore: cast_nullable_to_non_nullable
-            as List<String>,
+            tags: null == tags
+                ? _value.tags
+                : tags // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
             elements: null == elements
                 ? _value.elements
                 : elements // ignore: cast_nullable_to_non_nullable
@@ -169,10 +169,10 @@ class __$$BuildingSnapshotImplCopyWithImpl<$Res>
             ? _value.imagePattern
             : imagePattern // ignore: cast_nullable_to_non_nullable
                   as String,
-    tags: null == tags
-      ? _value._tags
-      : tags // ignore: cast_nullable_to_non_nullable
-          as List<String>,
+        tags: null == tags
+            ? _value._tags
+            : tags // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
         elements: null == elements
             ? _value._elements
             : elements // ignore: cast_nullable_to_non_nullable
@@ -217,6 +217,7 @@ class _$BuildingSnapshotImpl extends _BuildingSnapshot {
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_tags);
   }
+
   final List<CachedSData> _elements;
   @override
   List<CachedSData> get elements {

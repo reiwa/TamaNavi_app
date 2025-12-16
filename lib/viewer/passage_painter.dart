@@ -353,7 +353,7 @@ class PassagePainter extends CustomPainter {
     if (segment.touchesEntrance) {
       return 4.4 * widthFactor;
     }
-    if (segment.touchesElevator) {
+    if (segment.touchesVerticalConnector) {
       return 3 * widthFactor;
     }
     return 3.6 * widthFactor;

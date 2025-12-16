@@ -141,7 +141,7 @@ class _AppInfoSection extends StatelessWidget {
         const Icon(Icons.info_outline, size: 16),
         const SizedBox(width: 8),
         Expanded(
-          child: Text('TamaNavi App • v0.9.9', style: textTheme.labelMedium),
+          child: Text('TamaNavi App • v1.0.0', style: textTheme.labelMedium),
         ),
       ],
     );

@@ -22,10 +22,12 @@ class EditorActionScreen extends StatelessWidget {
     final element = selectedElement;
 
     return SizedBox(
-      height: 78,
+      height: 110,
+      width: double.infinity,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (!isConnecting) ...[
               EditorCoordinateInputs(

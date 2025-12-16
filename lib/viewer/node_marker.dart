@@ -139,6 +139,7 @@ List<Widget> buildNodeMarkers({
   required bool isDragging,
   required WidgetRef ref,
   required Size imageDimensions,
+  required Set<String> highlightedNodeIds,
 }) {
   final notifier = ref.read(interactiveImageProvider.notifier);
   final hasActiveRoute = routeNodeIds.isNotEmpty;
@@ -152,11 +153,14 @@ List<Widget> buildNodeMarkers({
 
     final entranceOnRoute =
         isFinderMode && isRouteNode && sData.type == PlaceType.entrance;
-    final elevatorOnRoute =
-        isFinderMode && isRouteNode && sData.type == PlaceType.elevator;
+    final verticalConnectorOnRoute =
+        isFinderMode && isRouteNode && sData.type.isVerticalConnector;
 
     final shouldHideInFinder =
-        isFinderMode && !isSelected && !entranceOnRoute && !elevatorOnRoute;
+        isFinderMode &&
+        !isSelected &&
+        !entranceOnRoute &&
+        !verticalConnectorOnRoute;
     if (shouldHideInFinder) {
       continue;
     }
@@ -178,9 +182,18 @@ List<Widget> buildNodeMarkers({
     if (isFinderMode && !isSelected) {
       if (entranceOnRoute) {
         color = colorScheme.secondary.withValues(alpha: 0.95);
-      } else if (elevatorOnRoute) {
+      } else if (verticalConnectorOnRoute) {
         color = colorScheme.primary.withValues(alpha: 0.4);
       }
+    }
+
+    final shouldHighlight =
+        !isFinderMode &&
+        highlightedNodeIds.contains(sData.id) &&
+        sData.type.isVerticalConnector &&
+        !isSelected;
+    if (shouldHighlight) {
+      color = colorScheme.tertiary.withValues(alpha: 0.85);
     }
 
     markers.add(
@@ -219,10 +232,10 @@ List<Widget> buildNodeMarkers({
 Color _dimColorForType(Color baseColor, PlaceType type) {
   const defaultAlpha = 0.5;
   const subduedPassageAlpha = 0.25;
-
-  final alpha = (type == PlaceType.passage || type == PlaceType.elevator)
-      ? subduedPassageAlpha
-      : defaultAlpha;
+  final alpha =
+      (type == PlaceType.passage || type.isVerticalConnector)
+          ? subduedPassageAlpha
+          : defaultAlpha;
 
   return baseColor.withValues(alpha: alpha);
 }

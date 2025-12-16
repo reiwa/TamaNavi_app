@@ -64,5 +64,8 @@ class InteractiveImageState with _$InteractiveImageState {
     @Default(false) bool needsNavigationOnBuild,
 
     @Default({}) Map<int, Size> imageDimensionsByFloor,
+
+    @Default(true) bool allowStairs,
+    @Default(true) bool allowElevators,
   }) = _InteractiveImageState;
 }

@@ -22,16 +22,17 @@ class EditorInteractionDelegate extends InteractionDelegate {
         active.elements.where((e) => e.floor == state.currentFloor),
       );
       final start = state.connectingStart;
-      final canConnect =
-          start != null && tapped != null && canConnectNodes(start, tapped);
-      if (canConnect) {
-        ref.read(activeBuildingProvider.notifier).addEdge(start.id, tapped.id);
-        return state.copyWith(
-          isConnecting: false,
-          connectingStart: null,
-          previewPosition: null,
-          tapPosition: null,
-        );
+      if (start != null && tapped != null) {
+        final notifier = ref.read(activeBuildingProvider.notifier);
+        if (notifier.hasEdgeBetween(start.id, tapped.id)) {
+          notifier.removeEdge(start.id, tapped.id);
+          return _exitConnectionMode(state);
+        }
+
+        if (canConnectNodes(start, tapped)) {
+          notifier.addEdge(start.id, tapped.id);
+          return _exitConnectionMode(state);
+        }
       }
       return state.copyWith(tapPosition: position, selectedElement: null);
     }
@@ -55,17 +56,16 @@ class EditorInteractionDelegate extends InteractionDelegate {
     required bool wasSelected,
   }) {
     if (state.isConnecting && state.connectingStart != null) {
-      if (canConnectNodes(state.connectingStart!, element)) {
-        ref
-            .read(activeBuildingProvider.notifier)
-            .addEdge(state.connectingStart!.id, element.id);
-        return state.copyWith(
-          isConnecting: false,
-          connectingStart: null,
-          previewPosition: null,
-          selectedElement: null,
-          tapPosition: null,
-        );
+      final start = state.connectingStart!;
+      final notifier = ref.read(activeBuildingProvider.notifier);
+      if (notifier.hasEdgeBetween(start.id, element.id)) {
+        notifier.removeEdge(start.id, element.id);
+        return _exitConnectionMode(state);
+      }
+
+      if (canConnectNodes(start, element)) {
+        notifier.addEdge(start.id, element.id);
+        return _exitConnectionMode(state);
       }
       return state.copyWith(
         tapPosition: element.position,
@@ -137,15 +137,18 @@ class EditorInteractionDelegate extends InteractionDelegate {
       return state;
     }
 
-    ref.read(activeBuildingProvider.notifier).addEdge(start.id, endNode.id);
+    final notifier = ref.read(activeBuildingProvider.notifier);
+    if (notifier.hasEdgeBetween(start.id, endNode.id)) {
+      notifier.removeEdge(start.id, endNode.id);
+      return _exitConnectionMode(state);
+    }
 
-    return state.copyWith(
-      isConnecting: false,
-      connectingStart: null,
-      previewPosition: null,
-      selectedElement: null,
-      tapPosition: null,
-    );
+    if (!canConnectNodes(start, endNode)) {
+      return state;
+    }
+
+    notifier.addEdge(start.id, endNode.id);
+    return _exitConnectionMode(state);
   }
 
   @override
@@ -220,5 +223,15 @@ class EditorInteractionDelegate extends InteractionDelegate {
 
     ref.read(activeBuildingProvider.notifier).removeSData(selected);
     return state.copyWith(selectedElement: null, tapPosition: null);
+  }
+
+  InteractiveImageState _exitConnectionMode(InteractiveImageState state) {
+    return state.copyWith(
+      isConnecting: false,
+      connectingStart: null,
+      previewPosition: null,
+      selectedElement: null,
+      tapPosition: null,
+    );
   }
 }
